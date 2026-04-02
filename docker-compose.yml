@@ -1,0 +1,68 @@
+services:
+
+  olt-api:
+    build:
+      context: ./olt-provisioning-api
+      dockerfile: Dockerfile
+    container_name: jtl_olt_api
+    ports:
+      - "8000:8000"
+    environment:
+      OLT_API_KEYS: ${OLT_API_KEYS:-bss-prod-key-change-me}
+      OLT_DB_HOST: ${OLT_DB_HOST:-192.168.14.4}
+      OLT_DB_PORT: ${OLT_DB_PORT:-3306}
+      OLT_DB_USER: ${OLT_DB_USER:-oltserv}
+      OLT_DB_PASSWORD: ${OLT_DB_PASSWORD:-apiolt##5202}
+      OLT_DB_NAME: ${OLT_DB_NAME:-olt_provisioning}
+      OLT_ACS_URL: ${OLT_ACS_URL:-http://197.232.61.253:7547}
+      OLT_ACS_MANAGEMENT_URL: ${OLT_ACS_MANAGEMENT_URL:-http://197.232.61.253:7557}
+      OLT_ACS_USERNAME: ${OLT_ACS_USERNAME:-ACS}
+      OLT_ACS_PASSWORD: ${OLT_ACS_PASSWORD:-jtl@acs}
+      OLT_AT_USERNAME: ${OLT_AT_USERNAME:-}
+      OLT_AT_API_KEY: ${OLT_AT_API_KEY:-}
+      OLT_AT_SENDER_ID: ${OLT_AT_SENDER_ID:-JTL}
+      OLT_AT_WHATSAPP_SENDER: ${OLT_AT_WHATSAPP_SENDER:-}
+      OLT_SMTP_HOST: ${OLT_SMTP_HOST:-localhost}
+      OLT_SMTP_PORT: ${OLT_SMTP_PORT:-587}
+      OLT_SMTP_USERNAME: ${OLT_SMTP_USERNAME:-}
+      OLT_SMTP_PASSWORD: ${OLT_SMTP_PASSWORD:-}
+      OLT_SMTP_FROM_EMAIL: ${OLT_SMTP_FROM_EMAIL:-noreply@jtl.co.ke}
+      OLT_SMTP_USE_TLS: "true"
+      OLT_CREDENTIAL_ENCRYPTION_KEY: ${OLT_CREDENTIAL_ENCRYPTION_KEY:-}
+      OLT_WIFI_SSID_PREFIX: JTL
+      OLT_DEBUG: "false"
+    network_mode: host
+    restart: unless-stopped
+
+  m6k-api:
+    build:
+      context: ./m6k-p2p-api
+      dockerfile: Dockerfile
+    container_name: jtl_m6k_api
+    ports:
+      - "8001:8001"
+    environment:
+      API_KEY: ${M6K_API_KEY:-JTL-BSS-2026-M6KPROV}
+      DB_PATH: /data/audit.db
+    volumes:
+      - ./m6k-data:/data
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  lexabensa-web:
+    build:
+      context: ./lexabensa-stays
+      dockerfile: Dockerfile
+    container_name: lexabensa_web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    networks:
+      - app_net
+
+# m6k audit.db stored at ./m6k-data/audit.db on the host (bind mount, no Docker volume needed)
+
+networks:
+  app_net:
+    driver: bridge
