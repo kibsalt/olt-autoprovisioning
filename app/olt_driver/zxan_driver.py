@@ -276,7 +276,7 @@ class ZXANDriver(BaseOLTDriver):
             "tr069-mgmt 1 state unlock",
             f"tr069-mgmt 1 acs {acs_url} validate basic username {acs_username} password {acs_password}",
             "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 2 state enable ingress-type lan protocol web",
+            "security-mgmt 2 state enable mode forward ingress-type lan protocol web",
             "security-mgmt 3 state enable ingress-type lan protocol telnet",
             "security-mgmt 4 state enable protocol telnet",
             "exit",
