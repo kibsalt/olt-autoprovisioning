@@ -11,9 +11,10 @@ logger = structlog.get_logger()
 
 class ZXANDriver(BaseOLTDriver):
 
-    def __init__(self, ssh_client: OLTSSHClient):
+    def __init__(self, ssh_client: OLTSSHClient, model: str = "C300"):
         self.ssh = ssh_client
         self.parser = OLTResponseParser()
+        self.model = model.upper()
 
     async def connect(self) -> None:
         await self.ssh.connect()
@@ -252,39 +253,61 @@ class ZXANDriver(BaseOLTDriver):
         pppoe_username: str | None = None,
         pppoe_password: str | None = None,
     ) -> CommandResult:
-        """Push full OMCI profile via pon-onu-mng context (C300/C320).
+        """Push full OMCI profile via pon-onu-mng context.
 
-        Configures: rx threshold, flow/VLAN filter, PPPoE credentials (if provided),
-        firewall, and security management. Matches production reference config.
+        C300 and C320 share most commands but differ in:
+        - C320 adds: voip protocol sip, interface pon rx-optical-thresh
+        - C320 security-mgmt 2: no 'mode forward' prefix
+        - C300 security-mgmt 2: includes 'mode forward'
         """
         path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
-        commands = [
-            f"pon-onu-mng {path}",
+        is_c320 = self.model == "C320"
+
+        commands = [f"pon-onu-mng {path}"]
+
+        if is_c320:
+            commands += [
+                "voip protocol sip",
+                f"interface pon pon_0/1 rx-optical-thresh lower -24.0 upper ont-internal-policy",
+            ]
+
+        commands += [
             "flow mode 1 tag-filter vlan-filter untag-filter discard",
             f"flow 1 pri 0 vlan {vlan_id}",
             "gemport 1 flow 1 dot1p-list 0",
             "switchport-bind switch_0/1 iphost 1",
         ]
+
         if pppoe_username and pppoe_password:
             commands.append(
                 f"pppoe 1 nat enable user {pppoe_username} password {pppoe_password}"
             )
+
         commands += [
-            f"vlan-filter-mode iphost 1 tag-filter vlan-filter untag-filter discard",
+            "vlan-filter-mode iphost 1 tag-filter vlan-filter untag-filter discard",
             f"vlan-filter iphost 1 pri 0 vlan {vlan_id}",
             "firewall enable level low anti-hack disable",
             "tr069-mgmt 1 state unlock",
             f"tr069-mgmt 1 acs {acs_url} validate basic username {acs_username} password {acs_password}",
             "security-mgmt 1 state enable mode forward protocol web",
-            "security-mgmt 2 state enable mode forward ingress-type lan protocol web",
+        ]
+
+        if is_c320:
+            commands.append("security-mgmt 2 state enable ingress-type lan protocol web")
+        else:
+            commands.append("security-mgmt 2 state enable mode forward ingress-type lan protocol web")
+
+        commands += [
             "security-mgmt 3 state enable ingress-type lan protocol telnet",
             "security-mgmt 4 state enable protocol telnet",
             "exit",
         ]
+
         results = await self.ssh.execute_config_mode(commands)
         logger.info(
             "omci_configured",
             platform="ZXAN",
+            model=self.model,
             onu=path,
             vlan=vlan_id,
             pppoe=bool(pppoe_username),

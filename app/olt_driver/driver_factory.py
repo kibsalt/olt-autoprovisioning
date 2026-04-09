@@ -41,8 +41,10 @@ class OLTDriverPool:
                 command_timeout=settings.ssh_command_timeout,
             )
 
-            driver_cls = TITANDriver if olt.platform == OLTPlatform.TITAN else ZXANDriver
-            driver = driver_cls(ssh)
+            if olt.platform == OLTPlatform.TITAN:
+                driver = TITANDriver(ssh)
+            else:
+                driver = ZXANDriver(ssh, model=olt.model.value)
             await driver.connect()
             self._drivers[olt.id] = driver
             logger.info(
