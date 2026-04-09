@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JTL Network Automation — Executive Summary</title>
+<style>
+:root{
+  --ink:#0f1923;--ink-mid:#1a2535;--ink-light:#253040;--rule:#d4d9e2;
+  --rule-light:#e8ecf2;--text:#1c2530;--text-mid:#4a5568;--text-light:#7a8899;
+  --amber:#c47a0f;--amber-light:#f5a623;--amber-bg:#fef9f0;--amber-border:#f9dfa3;
+  --green:#1a7a4a;--green-light:#3dd68c;--green-bg:#f0fdf6;--green-border:#a7f3d0;
+  --blue:#1e4da0;--blue-light:#5b9cf6;--blue-bg:#eff6ff;--blue-border:#bfdbfe;
+  --red:#991b1b;--red-light:#f05050;--red-bg:#fef2f2;
+  --teal:#0e6b72;--teal-light:#36c5cc;--teal-bg:#f0fdfe;
+  --sans:'Segoe UI',system-ui,sans-serif;
+  --mono:'Cascadia Code','Fira Code',monospace;
+  --max-w:860px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:#f4f6f9;color:var(--text);font-family:var(--sans);
+  font-size:15px;line-height:1.65;
+}
+.page-wrap{max-width:var(--max-w);margin:0 auto;padding:48px 40px 80px;}
+
+/* COVER */
+.cover{
+  background:var(--ink);color:#e8eef8;border-radius:10px;
+  padding:48px 52px;margin-bottom:36px;position:relative;overflow:hidden;
+}
+.cover::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 600px 300px at 90% -10%,rgba(245,166,35,0.08) 0%,transparent 70%),
+    radial-gradient(ellipse 400px 400px at -10% 110%,rgba(54,197,204,0.06) 0%,transparent 70%);
+}
+.cover-meta{position:relative;z-index:1;}
+.cover-label{
+  font-size:10px;letter-spacing:0.18em;text-transform:uppercase;
+  color:var(--amber-light);font-weight:700;margin-bottom:16px;
+  display:flex;align-items:center;gap:8px;
+}
+.cover-label::after{content:'';flex:1;height:1px;background:rgba(245,166,35,0.3);}
+.cover-title{font-size:36px;font-weight:800;line-height:1.1;margin-bottom:10px;color:#fff;}
+.cover-sub{font-size:18px;font-weight:400;color:#9aafc8;margin-bottom:28px;}
+.cover-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;}
+.cover-stat{padding:16px 18px;background:rgba(255,255,255,0.03);}
+.cs-label{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:#5a6e88;font-weight:600;margin-bottom:5px;}
+.cs-value{font-size:22px;font-weight:800;color:var(--amber-light);}
+.cs-value.g{color:var(--green-light);}
+.cs-value.b{color:var(--blue-light);}
+.cs-value.t{color:var(--teal-light);}
+.cs-sub{font-size:10px;color:#5a6e88;margin-top:2px;font-family:var(--mono);}
+.cover-date{margin-top:28px;font-size:12px;color:#3a4d62;font-family:var(--mono);}
+
+/* SECTION */
+.section{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:36px 40px;margin-bottom:24px;}
+.section-label{
+  font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--amber);
+  font-weight:700;margin-bottom:8px;
+}
+.section-title{font-size:22px;font-weight:800;color:var(--ink);margin-bottom:12px;line-height:1.2;}
+.section-lead{font-size:15px;color:var(--text-mid);max-width:720px;line-height:1.75;margin-bottom:28px;}
+.divider{height:1px;background:var(--rule-light);margin:24px 0;}
+
+/* VALUE CARDS */
+.value-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.value-card{border:1px solid var(--rule);border-radius:7px;padding:22px 22px;position:relative;overflow:hidden;}
+.value-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.value-card.amber::before{background:var(--amber-light);}
+.value-card.green::before{background:var(--green-light);}
+.value-card.blue::before{background:var(--blue-light);}
+.value-card.teal::before{background:var(--teal-light);}
+.value-icon{font-size:22px;margin-bottom:10px;}
+.value-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.value-desc{font-size:13px;color:var(--text-mid);line-height:1.55;}
+
+/* PROCESS STEPS */
+.process-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:16px;}
+.process-step{display:flex;gap:14px;align-items:flex-start;}
+.ps-num{
+  width:32px;height:32px;border-radius:50%;background:var(--ink);
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;flex-shrink:0;font-family:var(--mono);
+}
+.ps-num.amber{background:var(--amber);}
+.ps-num.blue{background:var(--blue);}
+.ps-num.green{background:var(--green);}
+.ps-num.teal{background:var(--teal);}
+.ps-body{}
+.ps-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:3px;}
+.ps-desc{font-size:12px;color:var(--text-mid);line-height:1.5;}
+
+/* TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;}
+.data-table th{text-align:left;padding:9px 12px;background:#f8fafc;color:var(--text-light);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;border-bottom:2px solid var(--rule);}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--rule-light);color:var(--text-mid);vertical-align:top;}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table td:first-child{color:var(--ink);font-weight:600;}
+code{font-family:var(--mono);font-size:11px;background:#f1f5f9;color:var(--amber);padding:1px 5px;border-radius:3px;}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600;font-family:var(--mono);}
+.badge-amber{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border);}
+.badge-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:28px;margin-bottom:16px;}
+.timeline::before{content:'';position:absolute;left:6px;top:4px;bottom:4px;width:2px;background:var(--rule);}
+.tl-item{position:relative;margin-bottom:18px;}
+.tl-item::before{content:'';position:absolute;left:-22px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--amber-light);border:2px solid #fff;box-shadow:0 0 0 2px var(--amber-light);}
+.tl-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+.tl-desc{font-size:12px;color:var(--text-mid);}
+
+/* HIGHLIGHT BOX */
+.highlight{border-radius:7px;padding:18px 22px;margin-bottom:20px;border-left:4px solid;}
+.highlight-amber{background:var(--amber-bg);border-left-color:var(--amber-light);}
+.highlight-green{background:var(--green-bg);border-left-color:var(--green-light);}
+.highlight-blue{background:var(--blue-bg);border-left-color:var(--blue-light);}
+.highlight strong{color:var(--ink);}
+.highlight p{font-size:13px;color:var(--text-mid);line-height:1.6;margin-top:4px;}
+
+/* API CARDS */
+.api-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.api-card{border:1px solid var(--rule);border-radius:7px;padding:24px;background:#fff;}
+.api-card-top{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.api-dot{width:10px;height:10px;border-radius:50%;}
+.api-dot.amber{background:var(--amber-light);}
+.api-dot.blue{background:var(--blue-light);}
+.api-name{font-size:15px;font-weight:800;color:var(--ink);}
+.api-port{font-family:var(--mono);font-size:10px;color:var(--text-light);}
+.api-desc{font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:12px;}
+.api-facts{list-style:none;font-size:12px;color:var(--text-mid);}
+.api-facts li{padding:3px 0;display:flex;gap:6px;align-items:flex-start;}
+.api-facts li::before{content:'→';color:var(--amber);font-weight:700;flex-shrink:0;}
+
+/* FOOTER */
+.footer{text-align:center;padding:24px;font-size:12px;color:var(--text-light);}
+
+@media(max-width:700px){
+  .page-wrap{padding:24px 20px 60px;}
+  .cover{padding:32px 28px;}
+  .cover-grid{grid-template-columns:repeat(2,1fr);}
+  .value-grid{grid-template-columns:1fr;}
+  .process-grid{grid-template-columns:1fr;}
+  .api-cards{grid-template-columns:1fr;}
+  .section{padding:24px 22px;}
+}
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="cover-meta">
+      <div class="cover-label">Executive Summary &nbsp;·&nbsp; Confidential</div>
+      <h1 class="cover-title">JTL Network Automation<br>API Suite</h1>
+      <p class="cover-sub">Automating broadband provisioning and enterprise circuit delivery</p>
+      <div class="cover-grid">
+        <div class="cover-stat">
+          <div class="cs-label">APIs Deployed</div>
+          <div class="cs-value">2</div>
+          <div class="cs-sub">OLT + M6K Circuit</div>
+        </div>
+        <div class="cover-stat">
+          <div class="cs-label">Provisioning Time</div>
+          <div class="cs-value g">~2 min</div>
+          <div class="cs-sub">end-to-end, automated</div>
+        </div>
+        <div class="cover-stat">
+          <div class="cs-label">OLT Fleet</div>
+          <div class="cs-value b">5</div>
+          <div class="cs-sub">C300/C320/C600/C620/C650</div>
+        </div>
+        <div class="cover-stat">
+          <div class="cs-label">Notifications</div>
+          <div class="cs-value t">3</div>
+          <div class="cs-sub">SMS · Email · WhatsApp</div>
+        </div>
+      </div>
+      <div class="cover-date">Prepared: March 2026 &nbsp;·&nbsp; JTL Networks Engineering &nbsp;·&nbsp; Server: 172.16.37.18</div>
+    </div>
+  </div>
+
+  <!-- WHAT WAS BUILT -->
+  <div class="section">
+    <div class="section-label">Overview</div>
+    <h2 class="section-title">What Was Built</h2>
+    <p class="section-lead">
+      Two production REST APIs that connect JTL's BSS platform directly to network equipment,
+      eliminating manual provisioning workflows and enabling automated, near-instant service delivery.
+    </p>
+    <div class="api-cards">
+      <div class="api-card">
+        <div class="api-card-top">
+          <div class="api-dot amber"></div>
+          <div>
+            <div class="api-name">OLT Provisioning API</div>
+            <div class="api-port">port 8000 &nbsp;·&nbsp; ZTE C300/C320/C600/C620/C650</div>
+          </div>
+        </div>
+        <div class="api-desc">
+          Automates the full GPON ONU lifecycle — from a customer's ONT being plugged in
+          to them receiving WiFi credentials on their phone — in a single BSS API call.
+        </div>
+        <ul class="api-facts">
+          <li>14-step automated provisioning workflow over SSH</li>
+          <li>TR-069/ACS WiFi configuration via GenicACS</li>
+          <li>SMS, Email, and WhatsApp credential delivery</li>
+          <li>Suspend, activate, and package upgrade in real time</li>
+          <li>Persistent ONU inventory in MariaDB</li>
+        </ul>
+      </div>
+      <div class="api-card">
+        <div class="api-card-top">
+          <div class="api-dot blue"></div>
+          <div>
+            <div class="api-name">M6K P2P Circuit API</div>
+            <div class="api-port">port 8001 &nbsp;·&nbsp; ZTE M6000-S / M6000-8S</div>
+          </div>
+        </div>
+        <div class="api-desc">
+          Provisions MPLS L2VPN pseudowire (VPWS) and local cross-connect circuits
+          on the IP/MPLS backbone. One BSS API call creates a live P2P circuit across two PoPs.
+        </div>
+        <ul class="api-facts">
+          <li>VPWS pseudowire with auto-assigned VC ID (5000–9999)</li>
+          <li>Pushes xconnect config to both A-end and Z-end PEs</li>
+          <li>Polls PW state UP within 90 seconds</li>
+          <li>Suspend/activate via interface shutdown — config preserved</li>
+          <li>SQLite audit trail for every operation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUSINESS VALUE -->
+  <div class="section">
+    <div class="section-label">Business Value</div>
+    <h2 class="section-title">What This Changes</h2>
+    <p class="section-lead">Before these APIs, activating a broadband customer required manual SSH sessions to OLTs and coordination across multiple teams. Now it is a single BSS button click.</p>
+    <div class="value-grid">
+      <div class="value-card amber">
+        <div class="value-icon">⏱</div>
+        <div class="value-title">Speed</div>
+        <div class="value-desc">Customer goes from ONT plug-in to WiFi online in approximately 2 minutes. Previously required 30–60 minutes of manual work per activation.</div>
+      </div>
+      <div class="value-card green">
+        <div class="value-icon">✓</div>
+        <div class="value-title">Accuracy</div>
+        <div class="value-desc">No copy-paste errors on VLAN tags, serial numbers, or ONU IDs. Every provisioning follows the same validated 14-step sequence every time.</div>
+      </div>
+      <div class="value-card blue">
+        <div class="value-icon">📊</div>
+        <div class="value-title">Visibility</div>
+        <div class="value-desc">Every operation is logged with timestamps, commands sent, and outcomes. Full audit trail for compliance, support, and capacity planning.</div>
+      </div>
+      <div class="value-card teal">
+        <div class="value-icon">↕</div>
+        <div class="value-title">Scale</div>
+        <div class="value-desc">One engineer can now handle the provisioning workload of 50+ manual activations per day. The system scales horizontally as the OLT fleet grows.</div>
+      </div>
+      <div class="value-card amber">
+        <div class="value-icon">💬</div>
+        <div class="value-title">Customer Experience</div>
+        <div class="value-desc">Customers automatically receive WiFi credentials via SMS, Email, and WhatsApp the moment their service is provisioned — no support call needed.</div>
+      </div>
+      <div class="value-card green">
+        <div class="value-icon">🔄</div>
+        <div class="value-title">BSS Integration</div>
+        <div class="value-desc">Asia Info BSS sends a single POST request to activate, suspend, or upgrade a customer. No network team intervention required for standard operations.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="section">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">GPON Customer Activation Flow</h2>
+    <p class="section-lead">What happens in the approximately 2 minutes between a BSS activation and a customer being online:</p>
+    <div class="process-grid">
+      <div class="process-step"><div class="ps-num amber">1</div><div class="ps-body"><div class="ps-title">BSS sends one API call</div><div class="ps-desc">POST /provision with customer ID, serial number, OLT name, and package ID.</div></div></div>
+      <div class="process-step"><div class="ps-num amber">2</div><div class="ps-body"><div class="ps-title">ONU located on network</div><div class="ps-desc">API scans GPON ports via SSH to find the ONU by its hardware serial number.</div></div></div>
+      <div class="process-step"><div class="ps-num amber">3</div><div class="ps-body"><div class="ps-title">ONU authorized on OLT</div><div class="ps-desc">API runs authorize + T-CONT + GEM port + service-port commands. ONU gets online.</div></div></div>
+      <div class="process-step"><div class="ps-num amber">4</div><div class="ps-body"><div class="ps-title">ACS endpoint configured</div><div class="ps-desc">TR-069 ACS URL pushed to ONU over CLI. ONU will phone home to GenicACS.</div></div></div>
+      <div class="process-step"><div class="ps-num green">5</div><div class="ps-body"><div class="ps-title">ONU phones home</div><div class="ps-desc">API polls GenicACS for up to 120s until the ONU's TR-069 Inform is received.</div></div></div>
+      <div class="process-step"><div class="ps-num green">6</div><div class="ps-body"><div class="ps-title">WiFi configured remotely</div><div class="ps-desc">Auto-generated SSID and password pushed via ACS TR-181 to both 2.4GHz and 5GHz bands.</div></div></div>
+      <div class="process-step"><div class="ps-num green">7</div><div class="ps-body"><div class="ps-title">Customer notified</div><div class="ps-desc">WiFi credentials sent by SMS, Email, and WhatsApp simultaneously.</div></div></div>
+      <div class="process-step"><div class="ps-num green">8</div><div class="ps-body"><div class="ps-title">BSS receives confirmation</div><div class="ps-desc">API returns ONU location, WiFi SSIDs, notification status, and total duration.</div></div></div>
+    </div>
+    <div class="highlight highlight-green">
+      <strong>Zero touch after plug-in:</strong>
+      <p>Once the customer's ONT is physically installed and connected to the PON port, the entire activation — OLT configuration, WiFi setup, and customer notification — is triggered by a single BSS action with no further manual steps.</p>
+    </div>
+  </div>
+
+  <!-- P2P CIRCUITS -->
+  <div class="section">
+    <div class="section-label">Enterprise Services</div>
+    <h2 class="section-title">P2P Circuit Provisioning</h2>
+    <p class="section-lead">For corporate customers requiring dedicated L2 connectivity between sites, the M6K API provisions MPLS pseudowires on the IP/MPLS backbone in under 90 seconds.</p>
+    <table class="data-table">
+      <thead><tr><th>Operation</th><th>BSS Trigger</th><th>Automated Action</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Create Circuit</td>
+          <td>Corporate P2P service activated</td>
+          <td>Auto-assign VC ID → xconnect on A+Z PEs → poll PW UP state</td>
+          <td>&lt; 90 sec</td>
+        </tr>
+        <tr>
+          <td>Suspend</td>
+          <td>Non-payment suspension</td>
+          <td>shutdown A-end interface (config intact)</td>
+          <td>&lt; 5 sec</td>
+        </tr>
+        <tr>
+          <td>Reactivate</td>
+          <td>Payment received</td>
+          <td>no shutdown A-end interface</td>
+          <td>&lt; 5 sec</td>
+        </tr>
+        <tr>
+          <td>Delete</td>
+          <td>Service terminated</td>
+          <td>no xconnect on both PEs + remove sub-interfaces</td>
+          <td>&lt; 10 sec</td>
+        </tr>
+        <tr>
+          <td>PW Status</td>
+          <td>NOC check / support ticket</td>
+          <td>Live show mpls l2vpn vc query to router</td>
+          <td>Real-time</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="highlight highlight-blue">
+      <strong>VC ID management is automatic:</strong>
+      <p>The API maintains a pool of MPLS VC IDs (5000–9999) and auto-assigns the next available one. No manual VC coordination between teams or risk of duplicate VC labels.</p>
+    </div>
+  </div>
+
+  <!-- TECHNICAL INTEGRATION -->
+  <div class="section">
+    <div class="section-label">Integration Architecture</div>
+    <h2 class="section-title">BSS Integration Points</h2>
+    <p class="section-lead">Both APIs use simple REST + JSON with API key authentication. No custom SDK or special middleware required from the BSS side.</p>
+    <table class="data-table">
+      <thead><tr><th>System</th><th>Integration Point</th><th>Protocol</th></tr></thead>
+      <tbody>
+        <tr><td>Asia Info BSS</td><td>Calls both APIs via HTTP REST</td><td>HTTP/JSON · X-API-Key header</td></tr>
+        <tr><td>ZTE OLTs (C300–C650)</td><td>API SSHs directly to OLT management IPs</td><td>SSHv2 · asyncssh</td></tr>
+        <tr><td>ZTE M6000 PE Routers</td><td>API SSHs to PE management IPs for ZXR10 CLI</td><td>SSHv2 · asyncssh</td></tr>
+        <tr><td>GenicACS (TR-069)</td><td>API posts TR-181 parameter tasks via management REST API</td><td>HTTP · port 7557</td></tr>
+        <tr><td>Africa's Talking</td><td>API posts SMS and WhatsApp notifications</td><td>HTTPS · REST API</td></tr>
+        <tr><td>SMTP Server</td><td>API sends email notifications via SMTP</td><td>SMTP/TLS</td></tr>
+        <tr><td>MariaDB</td><td>ONU inventory, VLAN registry, service profiles, audit logs</td><td>MySQL protocol · aiomysql</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECURITY -->
+  <div class="section">
+    <div class="section-label">Security &amp; Operations</div>
+    <h2 class="section-title">Security Posture</h2>
+    <div class="value-grid" style="grid-template-columns:1fr 1fr;">
+      <div class="value-card amber">
+        <div class="value-title">Authentication</div>
+        <div class="value-desc">All API endpoints require <code>X-API-Key</code> header. Keys are configurable via environment variables. Invalid keys return 401 immediately.</div>
+      </div>
+      <div class="value-card blue">
+        <div class="value-title">Credential Encryption</div>
+        <div class="value-desc">OLT SSH credentials are encrypted at rest using Fernet symmetric encryption (AES-128-CBC). The key is stored separately from the database.</div>
+      </div>
+      <div class="value-card green">
+        <div class="value-title">Audit Trail</div>
+        <div class="value-desc">Every provisioning, suspension, and deletion is logged with the API key used, commands sent to equipment, and outcome. Full traceability.</div>
+      </div>
+      <div class="value-card teal">
+        <div class="value-title">Internal Network Only</div>
+        <div class="value-desc">Both APIs run on the internal server at 172.16.37.18. Access from the public internet requires TLS termination via nginx reverse proxy.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEPLOYMENT -->
+  <div class="section">
+    <div class="section-label">Deployment</div>
+    <h2 class="section-title">Production Environment</h2>
+    <table class="data-table">
+      <thead><tr><th>Component</th><th>Location</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>OLT Provisioning API</td><td>172.16.37.18:8000 (Docker)</td><td><span class="badge badge-green">DEPLOYED</span></td></tr>
+        <tr><td>M6K Circuit API</td><td>172.16.37.18:8001 (Docker)</td><td><span class="badge badge-amber">READY TO DEPLOY</span></td></tr>
+        <tr><td>MariaDB</td><td>172.16.37.18 (Docker)</td><td><span class="badge badge-green">RUNNING</span></td></tr>
+        <tr><td>BSS Portal</td><td>172.16.37.18:8000/portal</td><td><span class="badge badge-green">LIVE</span></td></tr>
+        <tr><td>GenicACS</td><td>197.232.61.253:7547/7557</td><td><span class="badge badge-green">INTEGRATED</span></td></tr>
+        <tr><td>OpenAPI Docs</td><td>:8000/docs &nbsp;·&nbsp; :8001/docs</td><td><span class="badge badge-green">AVAILABLE</span></td></tr>
+      </tbody>
+    </table>
+    <div class="highlight highlight-amber">
+      <strong>Next Steps:</strong>
+      <p>
+        1. Deploy M6K Circuit API container (<code>docker compose up -d</code> in /opt/m6k-p2p-api).<br>
+        2. Run database migration for OLT API: <code>alembic upgrade head</code>.<br>
+        3. Update BSS to point provisioning calls to <code>http://172.16.37.18:8000/provision</code>.<br>
+        4. Configure Africa's Talking API key for SMS/WhatsApp delivery.
+      </p>
+    </div>
+  </div>
+
+  <div class="footer">
+    JTL Networks Engineering &nbsp;·&nbsp; March 2026 &nbsp;·&nbsp; Confidential
+  </div>
+
+</div>
+</body>
+</html>

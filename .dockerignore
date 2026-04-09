@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+*.pyo
+.env
+*.egg-info
+.git
+.gitignore
+tests/
+deploy*.py
+simulate*.py
+seed_*.py
+*.md
+docs/*.md

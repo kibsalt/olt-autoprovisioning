@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JTL OLT Provisioning API - Documentation</title>
+<style>
+  :root {
+    --primary: #1a56db;
+    --primary-light: #e8eefb;
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --code-bg: #1e293b;
+    --code-text: #e2e8f0;
+    --get: #059669;
+    --post: #1a56db;
+    --put: #d97706;
+    --delete: #dc2626;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  header { background: var(--primary); color: white; padding: 32px 0; }
+  header h1 { font-size: 28px; font-weight: 700; }
+  header p { color: rgba(255,255,255,0.85); margin-top: 8px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+  .badge-private { background: #fef3c7; color: #92400e; }
+  nav.sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 0; z-index: 100; }
+  nav.sidebar h3 { font-size: 11px; text-transform: uppercase; color: var(--muted); padding: 16px 20px 8px; letter-spacing: 0.05em; }
+  nav.sidebar a { display: block; padding: 6px 20px; color: var(--text); text-decoration: none; font-size: 14px; border-left: 3px solid transparent; }
+  nav.sidebar a:hover { background: var(--primary-light); border-left-color: var(--primary); }
+  nav.sidebar .logo { padding: 16px 20px; font-weight: 700; font-size: 16px; color: var(--primary); border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+  .main { margin-left: 260px; }
+  section { padding: 40px 0; border-bottom: 1px solid var(--border); }
+  section:last-child { border-bottom: none; }
+  h2 { font-size: 24px; margin-bottom: 16px; color: var(--text); }
+  h3 { font-size: 18px; margin: 24px 0 12px; color: var(--text); }
+  h4 { font-size: 15px; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  p { margin-bottom: 12px; color: var(--text); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
+  .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+  .card-body { padding: 20px; }
+  .method { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; color: white; min-width: 60px; text-align: center; }
+  .method-get { background: var(--get); }
+  .method-post { background: var(--post); }
+  .method-put { background: var(--put); }
+  .method-delete { background: var(--delete); }
+  .endpoint-path { font-family: 'SF Mono', Monaco, monospace; font-size: 14px; font-weight: 600; }
+  .endpoint-desc { color: var(--muted); font-size: 14px; margin-left: auto; }
+  pre { background: var(--code-bg); color: var(--code-text); padding: 16px 20px; border-radius: 6px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 8px 0 16px; }
+  code { font-family: 'SF Mono', Monaco, 'Courier New', monospace; }
+  .inline-code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: var(--text); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 14px; }
+  th { background: #f8fafc; text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--border); font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--muted); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .note { background: #eff6ff; border-left: 4px solid var(--primary); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 14px; }
+  .warning { background: #fef3c7; border-left: 4px solid var(--warning); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 14px; }
+  .success { background: #ecfdf5; border-left: 4px solid var(--success); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 14px; }
+  .flow-step { display: flex; gap: 16px; margin: 12px 0; align-items: flex-start; }
+  .flow-num { background: var(--primary); color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .flow-content { flex: 1; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .tag-ssh { background: #fce7f3; color: #9d174d; }
+  .tag-db { background: #dbeafe; color: #1e40af; }
+  .tag-notify { background: #d1fae5; color: #065f46; }
+  .arch-diagram { background: var(--code-bg); color: #93c5fd; padding: 20px; border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.8; white-space: pre; overflow-x: auto; }
+  @media (max-width: 900px) {
+    nav.sidebar { display: none; }
+    .main { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo">JTL OLT API</div>
+  <h3>Getting Started</h3>
+  <a href="#overview">Overview</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#auth">Authentication</a>
+  <h3>Setup</h3>
+  <a href="#setup">Server Setup</a>
+  <a href="#config">Configuration</a>
+  <a href="#security">Security Hardening</a>
+  <h3>API Reference</h3>
+  <a href="#olts">OLT Management</a>
+  <a href="#onus">ONU Provisioning</a>
+  <a href="#services">Service Profiles</a>
+  <a href="#vlans">VLANs</a>
+  <a href="#bandwidth">Bandwidth Profiles</a>
+  <a href="#operations">Operations</a>
+  <h3>Workflows</h3>
+  <a href="#workflow">Full Provisioning</a>
+  <a href="#notifications">Notifications</a>
+  <h3>Reference</h3>
+  <a href="#database">Database Schema</a>
+  <a href="#drivers">OLT Drivers</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+</nav>
+
+<div class="main">
+
+<header>
+<div class="container">
+  <h1>JTL OLT Provisioning API</h1>
+  <p>REST API for automated ZTE OLT customer provisioning &nbsp; <span class="badge badge-private">Private Network</span></p>
+  <p style="margin-top:12px; font-size:14px;">
+    Base URL: <code style="color:#93c5fd">http://172.16.37.18:8000/api/v1</code> &nbsp;|&nbsp;
+    Swagger UI: <code style="color:#93c5fd">http://172.16.37.18:8000/docs</code>
+  </p>
+</div>
+</header>
+
+<div class="container">
+
+<!-- OVERVIEW -->
+<section id="overview">
+<h2>Overview</h2>
+<p>The OLT Provisioning API bridges JTL's BSS with the ZTE OLT fleet. It receives REST requests and translates them into SSH CLI commands on the OLTs.</p>
+
+<table>
+  <tr><th>OLT Model</th><th>Platform</th><th>Interface Syntax</th></tr>
+  <tr><td>ZTE C300</td><td>ZXAN</td><td><code class="inline-code">gpon-olt_F/S/P</code></td></tr>
+  <tr><td>ZTE C320</td><td>ZXAN</td><td><code class="inline-code">gpon-olt_F/S/P</code></td></tr>
+  <tr><td>ZTE C600</td><td>TITAN</td><td><code class="inline-code">gpon_olt-F/S/P</code></td></tr>
+  <tr><td>ZTE C620</td><td>TITAN</td><td><code class="inline-code">gpon_olt-F/S/P</code></td></tr>
+  <tr><td>ZTE C650</td><td>TITAN</td><td><code class="inline-code">gpon_olt-F/S/P</code></td></tr>
+</table>
+
+<div class="note">The API server is on a <strong>private network</strong> (172.16.37.18). All OLT management IPs must be reachable from this server via SSH port 22.</div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+<h2>Architecture</h2>
+<div class="arch-diagram">
+ +---------+        REST/JSON         +------------------------+        SSH/CLI        +-------------+
+ |   BSS   | -----------------------> | OLT Provisioning API   | --------------------> | ZTE C300    |
+ | System  |   X-API-Key header       | 172.16.37.18:8000      |   Platform-specific   | ZTE C320    |
+ +---------+                          |                        |   ZXAN / TITAN        | ZTE C600    |
+                                      | Python 3.13 + FastAPI  |   commands            | ZTE C620    |
+                                      | systemd service        |                       | ZTE C650    |
+                                      +------+--------+--------+                       +-------------+
+                                             |        |
+                                        +----+--+  +--+------+
+                                        |MariaDB|  | SMTP    |
+                                        |  3306 |  | Africa's|
+                                        |(local)|  | Talking |
+                                        +-------+  +---------+
+</div>
+</section>
+
+<!-- AUTH -->
+<section id="auth">
+<h2>Authentication</h2>
+<p>All <code class="inline-code">/api/v1/*</code> endpoints require an API key in the <code class="inline-code">X-API-Key</code> header.</p>
+
+<pre><code>curl -H "X-API-Key: your-api-key" http://172.16.37.18:8000/api/v1/olts</code></pre>
+
+<table>
+  <tr><th>Scenario</th><th>Response</th></tr>
+  <tr><td>No API key provided</td><td><code>401</code> — <code>{"detail": "Not authenticated"}</code></td></tr>
+  <tr><td>Invalid API key</td><td><code>401</code> — <code>{"detail": "Invalid API key"}</code></td></tr>
+  <tr><td>Valid API key</td><td><code>200</code> — Normal response</td></tr>
+</table>
+
+<p>The <code class="inline-code">/health</code> endpoint does NOT require authentication.</p>
+</section>
+
+<!-- SETUP -->
+<section id="setup">
+<h2>Server Setup</h2>
+
+<h3>1. Install Dependencies</h3>
+<pre><code>sudo apt-get update
+sudo apt-get install -y python3 python3-pip mariadb-server
+
+sudo pip3 install --break-system-packages \
+  fastapi uvicorn sqlalchemy aiomysql alembic asyncssh \
+  pydantic-settings cryptography structlog africastalking \
+  aiosmtplib jinja2 pymysql</code></pre>
+
+<h3>2. Create Database</h3>
+<pre><code>sudo mariadb -u root &lt;&lt;'SQL'
+CREATE DATABASE IF NOT EXISTS olt_provisioning
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS 'olt_api'@'localhost' IDENTIFIED BY 'JtlOltDb2024!';
+CREATE USER IF NOT EXISTS 'olt_api'@'%' IDENTIFIED BY 'JtlOltDb2024!';
+GRANT ALL PRIVILEGES ON olt_provisioning.* TO 'olt_api'@'localhost';
+GRANT ALL PRIVILEGES ON olt_provisioning.* TO 'olt_api'@'%';
+FLUSH PRIVILEGES;
+SQL</code></pre>
+
+<h3>3. Generate Encryption Key</h3>
+<pre><code>python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"</code></pre>
+
+<h3>4. Create .env File</h3>
+<p>See <a href="#config">Configuration</a> section for all variables.</p>
+
+<h3>5. Create Tables</h3>
+<pre><code>cd /home/jtlacs/olt-provisioning-api
+python3 -c "
+from sqlalchemy import create_engine
+from app.config import settings
+from app.models.base import Base
+import app.models
+engine = create_engine(settings.sync_database_url)
+Base.metadata.create_all(engine)
+print('Tables created!')
+engine.dispose()
+"</code></pre>
+
+<h3>6. Create systemd Service</h3>
+<pre><code>sudo tee /etc/systemd/system/olt-api.service &lt;&lt;'EOF'
+[Unit]
+Description=JTL OLT Provisioning API
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=jtlacs
+WorkingDirectory=/home/jtlacs/olt-provisioning-api
+EnvironmentFile=/home/jtlacs/olt-provisioning-api/.env
+ExecStart=/usr/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable olt-api
+sudo systemctl start olt-api</code></pre>
+</section>
+
+<!-- CONFIG -->
+<section id="config">
+<h2>Configuration</h2>
+<p>All settings are in <code class="inline-code">.env</code>, prefixed with <code class="inline-code">OLT_</code>.</p>
+<table>
+  <tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+  <tr><td><code>OLT_API_KEYS</code></td><td>Comma-separated API keys</td><td>(required)</td></tr>
+  <tr><td><code>OLT_DB_HOST</code></td><td>MariaDB host</td><td>127.0.0.1</td></tr>
+  <tr><td><code>OLT_DB_PORT</code></td><td>MariaDB port</td><td>3306</td></tr>
+  <tr><td><code>OLT_DB_USER</code></td><td>DB username</td><td>olt_api</td></tr>
+  <tr><td><code>OLT_DB_PASSWORD</code></td><td>DB password</td><td>(required)</td></tr>
+  <tr><td><code>OLT_DB_NAME</code></td><td>Database name</td><td>olt_provisioning</td></tr>
+  <tr><td><code>OLT_CREDENTIAL_ENCRYPTION_KEY</code></td><td>Fernet key for OLT SSH cred encryption</td><td>(required)</td></tr>
+  <tr><td><code>OLT_ACS_URL</code></td><td>TR-069 ACS URL</td><td>http://197.232.61.253:7547</td></tr>
+  <tr><td><code>OLT_ACS_USERNAME</code></td><td>ACS username</td><td>ACS</td></tr>
+  <tr><td><code>OLT_ACS_PASSWORD</code></td><td>ACS password</td><td>jtl@acs</td></tr>
+  <tr><td><code>OLT_SSH_CONNECT_TIMEOUT</code></td><td>SSH connect timeout (sec)</td><td>10</td></tr>
+  <tr><td><code>OLT_SSH_COMMAND_TIMEOUT</code></td><td>SSH command timeout (sec)</td><td>30</td></tr>
+  <tr><td><code>OLT_SMTP_HOST</code></td><td>SMTP server</td><td>localhost</td></tr>
+  <tr><td><code>OLT_SMTP_PORT</code></td><td>SMTP port</td><td>587</td></tr>
+  <tr><td><code>OLT_SMTP_USERNAME</code></td><td>SMTP username</td><td>(empty)</td></tr>
+  <tr><td><code>OLT_SMTP_PASSWORD</code></td><td>SMTP password</td><td>(empty)</td></tr>
+  <tr><td><code>OLT_AT_USERNAME</code></td><td>Africa's Talking username</td><td>(empty)</td></tr>
+  <tr><td><code>OLT_AT_API_KEY</code></td><td>Africa's Talking API key</td><td>(empty)</td></tr>
+  <tr><td><code>OLT_AT_SENDER_ID</code></td><td>SMS sender ID</td><td>JTL</td></tr>
+  <tr><td><code>OLT_WIFI_SSID_PREFIX</code></td><td>WiFi SSID prefix</td><td>JTL</td></tr>
+</table>
+</section>
+
+<!-- SECURITY -->
+<section id="security">
+<h2>Security Hardening</h2>
+<p>The production server has these security measures applied:</p>
+
+<h3>UFW Firewall</h3>
+<pre><code>sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 8000/tcp  # API
+sudo ufw --force enable</code></pre>
+
+<h3>fail2ban (SSH Protection)</h3>
+<pre><code># /etc/fail2ban/jail.local
+[sshd]
+enabled = true
+maxretry = 5
+bantime = 3600    # 1 hour ban
+findtime = 600    # 10 minute window</code></pre>
+
+<h3>SSH Hardening</h3>
+<pre><code>PermitRootLogin no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2
+X11Forwarding no</code></pre>
+
+<h3>Kernel Hardening</h3>
+<p>SYN flood protection, IP spoofing protection, ICMP broadcast ignore, redirect blocking.</p>
+</section>
+
+<!-- OLT MANAGEMENT -->
+<section id="olts">
+<h2>OLT Management</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/olts</span>
+    <span class="endpoint-desc">Register a new OLT</span>
+  </div>
+  <div class="card-body">
+    <h4>Request Body</h4>
+    <pre><code>{
+  "name": "OLT-WESTLANDS-01",
+  "host": "10.10.1.1",
+  "ssh_port": 22,
+  "model": "C600",
+  "software_version": "V6.0.10P3",
+  "location": "Westlands POP",
+  "ssh_username": "admin",
+  "ssh_password": "zte_password"
+}</code></pre>
+    <div class="note">The <code>model</code> field accepts: <code>C300</code>, <code>C320</code>, <code>C600</code>, <code>C620</code>, <code>C650</code>. The platform (ZXAN/TITAN) is auto-detected. SSH credentials are encrypted at rest.</div>
+    <h4>Response (201)</h4>
+    <pre><code>{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "OLT-WESTLANDS-01",
+    "host": "10.10.1.1",
+    "ssh_port": 22,
+    "model": "C600",
+    "platform": "TITAN",
+    "status": "active",
+    "created_at": "2026-03-31T10:00:00"
+  }
+}</code></pre>
+    <h4>curl Example</h4>
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/olts \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"OLT-WESTLANDS-01","host":"10.10.1.1","ssh_port":22,"model":"C600","ssh_username":"admin","ssh_password":"zte_password"}'</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/olts</span>
+    <span class="endpoint-desc">List all OLTs (paginated)</span>
+  </div>
+  <div class="card-body">
+    <h4>Query Parameters</h4>
+    <table>
+      <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+      <tr><td>page</td><td>int</td><td>Page number (default: 1)</td></tr>
+      <tr><td>page_size</td><td>int</td><td>Items per page (default: 50, max: 100)</td></tr>
+      <tr><td>status</td><td>string</td><td>Filter: <code>active</code>, <code>maintenance</code>, <code>decommissioned</code></td></tr>
+      <tr><td>model</td><td>string</td><td>Filter by OLT model</td></tr>
+    </table>
+    <pre><code>curl "http://172.16.37.18:8000/api/v1/olts?status=active&model=C600" \
+  -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/olts/{olt_id}</span>
+    <span class="endpoint-desc">Get OLT details</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl http://172.16.37.18:8000/api/v1/olts/1 -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-put">PUT</span>
+    <span class="endpoint-path">/olts/{olt_id}</span>
+    <span class="endpoint-desc">Update OLT</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X PUT http://172.16.37.18:8000/api/v1/olts/1 \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"location":"Westlands POP - Rack 5","status":"maintenance"}'</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-delete">DELETE</span>
+    <span class="endpoint-path">/olts/{olt_id}</span>
+    <span class="endpoint-desc">Decommission OLT (soft delete)</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X DELETE http://172.16.37.18:8000/api/v1/olts/1 -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/olts/{olt_id}/health</span>
+    <span class="endpoint-desc">Test OLT SSH connectivity</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl http://172.16.37.18:8000/api/v1/olts/1/health -H "X-API-Key: bss-prod-key-change-me"
+
+# Response:
+{
+  "success": true,
+  "data": {
+    "olt_id": 1,
+    "name": "OLT-WESTLANDS-01",
+    "host": "10.10.1.1",
+    "reachable": true,
+    "software_version": "ZTE ZXA10 C600 V6.0.10P3"
+  }
+}</code></pre>
+  </div>
+</div>
+</section>
+
+<!-- ONU PROVISIONING -->
+<section id="onus">
+<h2>ONU Provisioning</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/unregistered</span>
+    <span class="endpoint-desc">Discover unregistered ONUs on a GPON port</span>
+  </div>
+  <div class="card-body">
+    <h4>Query Parameters</h4>
+    <table>
+      <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+      <tr><td>frame</td><td>int</td><td>Frame number (default: 1)</td></tr>
+      <tr><td>slot</td><td>int</td><td>Slot number (default: 1)</td></tr>
+      <tr><td>port</td><td>int</td><td>Port number (default: 1)</td></tr>
+    </table>
+    <div class="note"><span class="tag tag-ssh">SSH</span> This endpoint queries the OLT in real-time via SSH.</div>
+    <pre><code>curl "http://172.16.37.18:8000/api/v1/olts/1/onus/unregistered?frame=1&slot=1&port=1" \
+  -H "X-API-Key: bss-prod-key-change-me"
+
+# Response:
+{
+  "success": true,
+  "data": [
+    {"serial_number": "ZTEGC8FA0001", "frame": 1, "slot": 1, "port": 1, "onu_type": null},
+    {"serial_number": "ZTEGC8FA0002", "frame": 1, "slot": 1, "port": 1, "onu_type": null}
+  ]
+}</code></pre>
+  </div>
+</div>
+
+<div class="card" style="border-color: var(--primary); border-width: 2px;">
+  <div class="card-header" style="background: var(--primary-light);">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus</span>
+    <span class="endpoint-desc"><strong>Provision a new ONU (primary endpoint)</strong></span>
+  </div>
+  <div class="card-body">
+    <h4>Request Body</h4>
+    <pre><code>{
+  "serial_number": "ZTEGC8FA0001",
+  "customer_id": "CUST-10042",
+  "frame": 1,
+  "slot": 1,
+  "port": 1,
+  "onu_type": "ZXHN_F680",
+  "description": "John Doe - Westlands",
+  "service_profile_ids": [1],
+  "customer_email": "john@example.com",
+  "customer_phone": "+254712345678"
+}</code></pre>
+
+    <h4>What happens during provisioning</h4>
+    <div class="flow-step"><div class="flow-num">1</div><div class="flow-content"><span class="tag tag-ssh">SSH</span> Finds next available ONU ID on the GPON port</div></div>
+    <div class="flow-step"><div class="flow-num">2</div><div class="flow-content"><span class="tag tag-ssh">SSH</span> Authorizes ONU on the OLT (<code>onu X type ZXHN_F680 sn ZTEGC8FA0001</code>)</div></div>
+    <div class="flow-step"><div class="flow-num">3</div><div class="flow-content"><span class="tag tag-ssh">SSH</span> Configures TR-069 ACS (URL: <code>http://197.232.61.253:7547</code>, user: ACS)</div></div>
+    <div class="flow-step"><div class="flow-num">4</div><div class="flow-content"><span class="tag tag-ssh">SSH</span> Generates and configures WiFi (2.4GHz + 5GHz, WPA2-PSK)</div></div>
+    <div class="flow-step"><div class="flow-num">5</div><div class="flow-content"><span class="tag tag-ssh">SSH</span> Applies service profiles (T-CONT, GEM port, service port, VLAN)</div></div>
+    <div class="flow-step"><div class="flow-num">6</div><div class="flow-content"><span class="tag tag-db">DB</span> Saves ONU record with WiFi credentials to database</div></div>
+    <div class="flow-step"><div class="flow-num">7</div><div class="flow-content"><span class="tag tag-notify">NOTIFY</span> Sends WiFi credentials to customer via email + SMS</div></div>
+
+    <h4>Response (201)</h4>
+    <pre><code>{
+  "success": true,
+  "data": {
+    "id": 1,
+    "olt_id": 1,
+    "serial_number": "ZTEGC8FA0001",
+    "customer_id": "CUST-10042",
+    "frame": 1, "slot": 1, "port": 1, "onu_id": 1,
+    "onu_type": "ZXHN_F680",
+    "admin_state": "enabled",
+    "oper_state": "unknown",
+    "wifi_ssid_2g": "JTL_CUST10042",
+    "wifi_ssid_5g": "JTL_CUST10042_5G",
+    "wifi_password": "aB3xYz9kLm2p",
+    "customer_email": "john@example.com",
+    "customer_phone": "+254712345678",
+    "created_at": "2026-03-31T10:05:00"
+  }
+}</code></pre>
+
+    <h4>curl Example</h4>
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/olts/1/onus \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "serial_number": "ZTEGC8FA0001",
+    "customer_id": "CUST-10042",
+    "frame": 1, "slot": 1, "port": 1,
+    "onu_type": "ZXHN_F680",
+    "description": "John Doe - Westlands",
+    "service_profile_ids": [1],
+    "customer_email": "john@example.com",
+    "customer_phone": "+254712345678"
+  }'</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus</span>
+    <span class="endpoint-desc">List ONUs on an OLT</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl "http://172.16.37.18:8000/api/v1/olts/1/onus?page=1&page_size=50" \
+  -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/onus?customer_id={id}</span>
+    <span class="endpoint-desc">Find ONU by BSS customer ID</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl "http://172.16.37.18:8000/api/v1/onus?customer_id=CUST-10042" \
+  -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-delete">DELETE</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/{onu_id}</span>
+    <span class="endpoint-desc">Remove ONU (de-provision)</span>
+  </div>
+  <div class="card-body">
+    <p>Deletes all service ports on the OLT, de-authorizes the ONU, and removes the database record.</p>
+    <pre><code>curl -X DELETE http://172.16.37.18:8000/api/v1/olts/1/onus/1 \
+  -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+</section>
+
+<!-- SERVICE PROFILES -->
+<section id="services">
+<h2>Service Profiles</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/service-profiles</span>
+    <span class="endpoint-desc">Create a service profile</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/service-profiles \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "RESIDENTIAL_50M",
+    "service_type": "internet",
+    "upstream_profile_id": 1,
+    "downstream_profile_id": 2,
+    "vlan_id": 1,
+    "gem_port": 1,
+    "tcont_id": 1,
+    "description": "50Mbps residential internet"
+  }'</code></pre>
+    <p><code>service_type</code> options: <code>internet</code>, <code>voip</code>, <code>iptv</code></p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/service-profiles</span>
+    <span class="endpoint-desc">List all service profiles</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl http://172.16.37.18:8000/api/v1/service-profiles -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/{onu_id}/services</span>
+    <span class="endpoint-desc">Apply service profile to ONU</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/olts/1/onus/1/services \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"service_profile_id": 1}'</code></pre>
+  </div>
+</div>
+</section>
+
+<!-- VLANs -->
+<section id="vlans">
+<h2>VLANs</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/vlans</span>
+    <span class="endpoint-desc">Create VLAN</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/vlans \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"vlan_tag": 100, "name": "INTERNET", "service_type": "internet"}'</code></pre>
+    <p><code>service_type</code> options: <code>internet</code>, <code>voip</code>, <code>iptv</code>, <code>management</code></p>
+    <p><code>vlan_tag</code> range: 1-4094</p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/vlans</span>
+    <span class="endpoint-desc">List all VLANs</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl http://172.16.37.18:8000/api/v1/vlans -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+</section>
+
+<!-- BANDWIDTH -->
+<section id="bandwidth">
+<h2>Bandwidth Profiles</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/bandwidth-profiles</span>
+    <span class="endpoint-desc">Create bandwidth profile</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/bandwidth-profiles \
+  -H "X-API-Key: bss-prod-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "DOWN_50M",
+    "traffic_table_index": 10,
+    "cir": 50000,
+    "pir": 51200,
+    "cbs": 0,
+    "pbs": 0,
+    "dba_type": "type3",
+    "direction": "downstream"
+  }'</code></pre>
+    <table>
+      <tr><th>Field</th><th>Description</th></tr>
+      <tr><td>cir</td><td>Committed Information Rate in <strong>kbps</strong> (50Mbps = 50000)</td></tr>
+      <tr><td>pir</td><td>Peak Information Rate in <strong>kbps</strong></td></tr>
+      <tr><td>dba_type</td><td>GPON DBA: <code>type1</code>-<code>type5</code> (default: <code>type3</code>)</td></tr>
+      <tr><td>direction</td><td><code>upstream</code> or <code>downstream</code></td></tr>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- OPERATIONS -->
+<section id="operations">
+<h2>Operations (Enable / Disable / Suspend)</h2>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/{onu_id}/enable</span>
+    <span class="endpoint-desc">Enable ONU</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/olts/1/onus/1/enable \
+  -H "X-API-Key: bss-prod-key-change-me"
+
+# Response:
+{"success":true,"data":{"success":true,"message":"ONU enabled","onu_id":1,"previous_state":"disabled","new_state":"enabled"}}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/{onu_id}/disable</span>
+    <span class="endpoint-desc">Disable ONU (admin shutdown)</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/olts/1/onus/1/disable \
+  -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-post">POST</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/{onu_id}/suspend</span>
+    <span class="endpoint-desc">Suspend ONU services (keep registration)</span>
+  </div>
+  <div class="card-body">
+    <p>Disables the ONU on the OLT and marks all services as suspended in the database. The ONU remains registered.</p>
+    <pre><code>curl -X POST http://172.16.37.18:8000/api/v1/olts/1/onus/1/suspend \
+  -H "X-API-Key: bss-prod-key-change-me"</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="method method-get">GET</span>
+    <span class="endpoint-path">/olts/{olt_id}/onus/{onu_id}/status</span>
+    <span class="endpoint-desc">Get live ONU status from OLT</span>
+  </div>
+  <div class="card-body">
+    <div class="note"><span class="tag tag-ssh">SSH</span> Queries the OLT in real-time. Returns optical power levels, distance, and last down cause.</div>
+    <pre><code>curl http://172.16.37.18:8000/api/v1/olts/1/onus/1/status \
+  -H "X-API-Key: bss-prod-key-change-me"
+
+# Response:
+{
+  "success": true,
+  "data": {
+    "onu_id": 1,
+    "serial_number": "ZTEGC8FA0001",
+    "admin_state": "enable",
+    "oper_state": "working",
+    "rx_power": "-18.5",
+    "tx_power": "2.3",
+    "distance": "1250",
+    "last_down_cause": "dying-gasp"
+  }
+}</code></pre>
+  </div>
+</div>
+</section>
+
+<!-- WORKFLOW -->
+<section id="workflow">
+<h2>Full Provisioning Workflow</h2>
+<p>Complete end-to-end example for provisioning a new customer.</p>
+
+<div class="success"><strong>Prerequisites:</strong> OLT registered, VLANs created, bandwidth profiles created, service profiles created. These are one-time setup steps.</div>
+
+<pre><code># Variables
+API="http://172.16.37.18:8000/api/v1"
+KEY="X-API-Key: bss-prod-key-change-me"
+
+# =============================================
+# ONE-TIME SETUP (do once per OLT/service tier)
+# =============================================
+
+# 1. Register OLT
+curl -X POST "$API/olts" -H "$KEY" -H "Content-Type: application/json" \
+  -d '{"name":"OLT-WESTLANDS-01","host":"10.10.1.1","model":"C600","ssh_username":"admin","ssh_password":"zte_pass"}'
+
+# 2. Create VLAN
+curl -X POST "$API/vlans" -H "$KEY" -H "Content-Type: application/json" \
+  -d '{"vlan_tag":100,"name":"INTERNET","service_type":"internet"}'
+
+# 3. Create bandwidth profiles
+curl -X POST "$API/bandwidth-profiles" -H "$KEY" -H "Content-Type: application/json" \
+  -d '{"name":"UP_10M","cir":10000,"pir":10240,"direction":"upstream","dba_type":"type3"}'
+
+curl -X POST "$API/bandwidth-profiles" -H "$KEY" -H "Content-Type: application/json" \
+  -d '{"name":"DOWN_50M","cir":50000,"pir":51200,"direction":"downstream","dba_type":"type3"}'
+
+# 4. Create service profile
+curl -X POST "$API/service-profiles" -H "$KEY" -H "Content-Type: application/json" \
+  -d '{"name":"RESIDENTIAL_50M","service_type":"internet","upstream_profile_id":1,"downstream_profile_id":2,"vlan_id":1,"gem_port":1,"tcont_id":1}'
+
+# =============================================
+# PER-CUSTOMER PROVISIONING
+# =============================================
+
+# 5. Discover unregistered ONUs
+curl "$API/olts/1/onus/unregistered?frame=1&slot=1&port=1" -H "$KEY"
+
+# 6. Provision customer (this does everything automatically)
+curl -X POST "$API/olts/1/onus" -H "$KEY" -H "Content-Type: application/json" \
+  -d '{
+    "serial_number":"ZTEGC8FA0001",
+    "customer_id":"CUST-10042",
+    "frame":1,"slot":1,"port":1,
+    "onu_type":"ZXHN_F680",
+    "service_profile_ids":[1],
+    "customer_email":"john@example.com",
+    "customer_phone":"+254712345678"
+  }'
+
+# 7. Verify status
+curl "$API/olts/1/onus/1/status" -H "$KEY"
+
+# =============================================
+# LIFECYCLE MANAGEMENT
+# =============================================
+
+# Suspend (non-payment)
+curl -X POST "$API/olts/1/onus/1/suspend" -H "$KEY"
+
+# Re-enable (payment received)
+curl -X POST "$API/olts/1/onus/1/enable" -H "$KEY"
+
+# Remove (customer churn)
+curl -X DELETE "$API/olts/1/onus/1" -H "$KEY"</code></pre>
+</section>
+
+<!-- NOTIFICATIONS -->
+<section id="notifications">
+<h2>Notifications (Email & SMS)</h2>
+<p>After successful ONU provisioning, WiFi credentials are sent automatically if <code>customer_email</code> and/or <code>customer_phone</code> are provided.</p>
+
+<h3>WiFi Credential Format</h3>
+<table>
+  <tr><th>Band</th><th>SSID Example</th></tr>
+  <tr><td>2.4 GHz</td><td><code>JTL_CUST10042</code></td></tr>
+  <tr><td>5 GHz</td><td><code>JTL_CUST10042_5G</code></td></tr>
+  <tr><td>Password</td><td><code>aB3xYz9kLm2p</code> (12-char random)</td></tr>
+</table>
+
+<h3>Email Content</h3>
+<p>Plain text email with SSID and password for both bands, sent from the configured SMTP address.</p>
+
+<h3>SMS Content</h3>
+<p>Sent via Africa's Talking with sender ID "JTL". Message includes both SSIDs and the password.</p>
+
+<h3>Notification Logging</h3>
+<p>All notification attempts are logged in the <code>notifications</code> table with status (<code>sent</code> or <code>failed</code>).</p>
+</section>
+
+<!-- DATABASE -->
+<section id="database">
+<h2>Database Schema</h2>
+<table>
+  <tr><th>Table</th><th>Description</th><th>Key Fields</th></tr>
+  <tr><td><code>olts</code></td><td>OLT inventory</td><td>name, host, model, platform, encrypted SSH creds, status</td></tr>
+  <tr><td><code>onus</code></td><td>Provisioned ONUs</td><td>serial_number, customer_id, frame/slot/port/onu_id, WiFi creds, admin_state</td></tr>
+  <tr><td><code>service_profiles</code></td><td>Service definitions</td><td>name, service_type, bandwidth FKs, VLAN FK, gem_port, tcont_id</td></tr>
+  <tr><td><code>onu_services</code></td><td>ONU-to-profile mapping</td><td>onu_id, service_profile_id, service_port_id, status</td></tr>
+  <tr><td><code>vlans</code></td><td>VLAN registry</td><td>vlan_tag (1-4094), name, service_type</td></tr>
+  <tr><td><code>bandwidth_profiles</code></td><td>Traffic tables</td><td>cir, pir (kbps), dba_type, direction</td></tr>
+  <tr><td><code>audit_logs</code></td><td>Audit trail</td><td>api_key, action, OLT commands/responses, duration</td></tr>
+  <tr><td><code>notifications</code></td><td>Email/SMS log</td><td>onu_id, type, recipient, status, sent_at</td></tr>
+</table>
+</section>
+
+<!-- DRIVERS -->
+<section id="drivers">
+<h2>OLT Driver Reference</h2>
+<p>The API auto-selects the correct driver based on OLT model.</p>
+
+<h3>ZXAN Platform (C300, C320)</h3>
+<pre><code># ONU Authorization
+interface gpon-olt_1/1/1
+  onu 1 type ZXHN_F680 sn ZTEGC8FA0001
+exit
+
+# WiFi Configuration
+interface gpon-onu_1/1/1:1
+  wifi ssid 1 name JTL_CUST001
+  wifi ssid 1 auth-mode wpa2-psk
+  wifi ssid 1 wpa-key MyPassword
+  wifi ssid 1 enable true
+  wifi ssid 5 name JTL_CUST001_5G
+  wifi ssid 5 auth-mode wpa2-psk
+  wifi ssid 5 wpa-key MyPassword
+  wifi ssid 5 enable true
+exit
+
+# Service Port
+service-port 10001 vport-mode gpon-onu_1/1/1:1 vlan 100 user-vlan 100 gemport 1</code></pre>
+
+<h3>TITAN Platform (C600, C620, C650)</h3>
+<pre><code># ONU Authorization (note underscore/hyphen difference)
+interface gpon_olt-1/1/1
+  onu 1 type ZXHN_F680 sn ZTEGC8FA0001
+exit
+
+# WiFi Configuration
+interface gpon_onu-1/1/1:1
+  wifi ssid 1 name JTL_CUST001
+  ...
+exit
+
+# Service Port (different syntax)
+service-port 10001 gpon 1/1/1 onu 1 gemport 1 match vlan 100 action vlan 100</code></pre>
+</section>
+
+<!-- TROUBLESHOOTING -->
+<section id="troubleshooting">
+<h2>Troubleshooting</h2>
+
+<h3>Service Status</h3>
+<pre><code>sudo systemctl status olt-api
+sudo journalctl -u olt-api -n 50 --no-pager
+sudo journalctl -u olt-api -f  # live logs</code></pre>
+
+<h3>Common Errors</h3>
+<table>
+  <tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+  <tr><td><code>401 Not authenticated</code></td><td>Missing X-API-Key header</td><td>Add <code>-H "X-API-Key: your-key"</code></td></tr>
+  <tr><td><code>502 OLT_CONNECTION_ERROR</code></td><td>Cannot SSH to OLT</td><td>Check OLT IP, SSH creds, network connectivity</td></tr>
+  <tr><td><code>504 OLT_TIMEOUT</code></td><td>OLT command timed out</td><td>Increase <code>OLT_SSH_COMMAND_TIMEOUT</code></td></tr>
+  <tr><td><code>422 OLT_COMMAND_ERROR</code></td><td>OLT rejected CLI command</td><td>Check ONU type, serial number format</td></tr>
+  <tr><td><code>404 ONU not found</code></td><td>ONU ID does not exist</td><td>Verify the ONU ID in the URL</td></tr>
+  <tr><td><code>409 No available ONU IDs</code></td><td>GPON port is full (128 ONUs)</td><td>Use a different port</td></tr>
+</table>
+
+<h3>Restart</h3>
+<pre><code>sudo systemctl restart olt-api</code></pre>
+
+<h3>Database Backup</h3>
+<pre><code>sudo mysqldump -u root olt_provisioning > ~/backup/olt_$(date +%Y%m%d).sql</code></pre>
+</section>
+
+</div><!-- container -->
+</div><!-- main -->
+
+</body>
+</html>

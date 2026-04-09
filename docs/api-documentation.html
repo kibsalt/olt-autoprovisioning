@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JTL Network Automation APIs — Technical Documentation</title>
+<style>
+:root {
+  --steel:       #0e1117;
+  --steel-mid:   #161c26;
+  --steel-light: #1e2736;
+  --steel-rule:  #252f40;
+  --steel-faint: #2e3a4f;
+  --amber:       #f5a623;
+  --amber-dim:   #c27d0e;
+  --amber-glow:  rgba(245,166,35,0.12);
+  --amber-faint: rgba(245,166,35,0.05);
+  --ice:         #e8eef8;
+  --ice-mid:     #9aafc8;
+  --ice-dim:     #5a6e88;
+  --ice-faint:   #2a3448;
+  --green:       #3dd68c;
+  --green-dim:   #1a6b47;
+  --green-bg:    rgba(61,214,140,0.08);
+  --red:         #f05050;
+  --red-bg:      rgba(240,80,80,0.08);
+  --blue:        #5b9cf6;
+  --blue-bg:     rgba(91,156,246,0.08);
+  --teal:        #36c5cc;
+  --teal-bg:     rgba(54,197,204,0.08);
+  --purple:      #b47aed;
+  --purple-bg:   rgba(180,122,237,0.08);
+  --sidebar-w:   270px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--steel);color:var(--ice);
+  font-family:'Segoe UI',system-ui,sans-serif;
+  font-size:14px;line-height:1.65;min-height:100vh;
+}
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(var(--steel-rule) 1px,transparent 1px),
+    linear-gradient(90deg,var(--steel-rule) 1px,transparent 1px);
+  background-size:40px 40px;opacity:0.3;pointer-events:none;z-index:0;
+}
+.topstrip{
+  position:fixed;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--amber) 0%,var(--teal) 55%,var(--blue) 100%);
+  z-index:999;
+}
+/* SIDEBAR */
+.sidebar{
+  position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);
+  background:var(--steel-mid);border-right:1px solid var(--steel-rule);
+  z-index:100;display:flex;flex-direction:column;overflow:hidden;
+}
+.sidebar-brand{padding:28px 24px 20px;border-bottom:1px solid var(--steel-rule);}
+.brand-label{font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--amber);margin-bottom:6px;font-weight:600;}
+.brand-name{font-size:16px;font-weight:700;color:var(--ice);line-height:1.25;}
+.brand-sub{font-size:10px;color:var(--ice-dim);margin-top:4px;font-family:monospace;}
+.sidebar-nav{flex:1;overflow-y:auto;padding:12px 0;}
+.nav-group-label{
+  font-size:9px;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--ice-dim);padding:14px 24px 5px;font-weight:600;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:8px 24px;
+  cursor:pointer;font-size:13px;font-weight:500;color:var(--ice-mid);
+  border-left:2px solid transparent;transition:all 0.15s;
+}
+.nav-item:hover{color:var(--ice);background:var(--amber-faint);border-left-color:var(--amber-dim);}
+.nav-item.active{color:var(--amber);background:var(--amber-glow);border-left-color:var(--amber);}
+.nav-dot{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:0.5;flex-shrink:0;}
+.nav-item.active .nav-dot{opacity:1;}
+.nav-indent{padding-left:40px;font-size:12px;}
+.sidebar-footer{
+  padding:14px 24px;border-top:1px solid var(--steel-rule);
+  font-size:10px;color:var(--ice-dim);font-family:monospace;
+}
+.sidebar-footer strong{color:var(--amber);}
+/* MAIN */
+.main{margin-left:var(--sidebar-w);min-height:100vh;position:relative;z-index:1;}
+.section-page{display:none;padding:48px 56px;max-width:980px;animation:fadeUp 0.25s ease;}
+.section-page.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.section-eyebrow{font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--amber);margin-bottom:8px;font-weight:600;}
+.section-title{font-size:34px;font-weight:800;color:var(--ice);line-height:1.1;margin-bottom:14px;}
+.section-lead{font-size:15px;color:var(--ice-mid);max-width:700px;margin-bottom:36px;line-height:1.7;}
+.section-divider{height:1px;background:var(--steel-rule);margin:36px 0;}
+.sub-title{font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--amber);margin-bottom:12px;}
+/* STAT GRID */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--steel-rule);border:1px solid var(--steel-rule);border-radius:6px;overflow:hidden;margin-bottom:36px;}
+.stat-cell{background:var(--steel-mid);padding:18px 20px;}
+.stat-label{font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ice-dim);margin-bottom:5px;font-weight:600;}
+.stat-value{font-size:24px;font-weight:800;color:var(--amber);line-height:1;}
+.stat-value.green{color:var(--green);}
+.stat-value.blue{color:var(--blue);}
+.stat-value.teal{color:var(--teal);}
+.stat-sub{font-size:10px;color:var(--ice-dim);margin-top:3px;font-family:monospace;}
+/* ENDPOINT CARD */
+.endpoint-card{background:var(--steel-mid);border:1px solid var(--steel-rule);border-radius:6px;margin-bottom:20px;overflow:hidden;}
+.ep-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;}
+.ep-header:hover{background:var(--steel-light);}
+.method{font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:3px 10px;border-radius:3px;font-family:monospace;}
+.m-post{background:var(--amber-glow);color:var(--amber);}
+.m-get{background:var(--green-bg);color:var(--green);}
+.m-put{background:var(--blue-bg);color:var(--blue);}
+.m-delete{background:var(--red-bg);color:var(--red);}
+.ep-path{font-family:monospace;font-size:14px;color:var(--ice);font-weight:600;}
+.ep-summary{font-size:13px;color:var(--ice-mid);margin-left:auto;}
+.ep-body{padding:18px;border-top:1px solid var(--steel-rule);}
+.ep-desc{font-size:13px;color:var(--ice-mid);margin-bottom:16px;line-height:1.6;}
+/* PARAMS TABLE */
+.param-table{width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px;}
+.param-table th{text-align:left;padding:7px 10px;background:var(--steel-light);color:var(--ice-dim);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;}
+.param-table td{padding:7px 10px;border-bottom:1px solid var(--steel-rule);color:var(--ice-mid);}
+.param-table tr:last-child td{border-bottom:none;}
+.param-name{font-family:monospace;color:var(--ice);font-weight:500;}
+.param-type{font-family:monospace;color:var(--teal);font-size:11px;}
+.p-req{background:rgba(240,80,80,0.15);color:var(--red);padding:1px 6px;border-radius:2px;font-size:10px;}
+.p-opt{background:var(--steel-faint);color:var(--ice-dim);padding:1px 6px;border-radius:2px;font-size:10px;}
+/* CODE BLOCK */
+.code-block{background:var(--steel-mid);border:1px solid var(--steel-rule);border-radius:6px;overflow:hidden;margin-bottom:20px;}
+.code-header{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;border-bottom:1px solid var(--steel-rule);background:var(--steel-light);}
+.code-lang{font-family:monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ice-dim);}
+.code-body{padding:16px 18px;overflow-x:auto;}
+pre{font-family:'Cascadia Code','Fira Code',monospace;font-size:12px;line-height:1.7;color:var(--ice-mid);white-space:pre;}
+pre .kw{color:var(--amber);}
+pre .val{color:var(--green);}
+pre .str{color:var(--teal);}
+pre .num{color:var(--blue);}
+pre .cmt{color:var(--ice-dim);font-style:italic;}
+pre .ok{color:var(--green);font-weight:600;}
+/* TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px;}
+.data-table th{text-align:left;padding:9px 12px;background:var(--steel-light);color:var(--ice-dim);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--steel-rule);color:var(--ice-mid);vertical-align:top;}
+.data-table td code{font-family:monospace;font-size:11px;color:var(--amber);background:var(--amber-faint);padding:1px 5px;border-radius:2px;}
+.data-table tr:last-child td{border-bottom:none;}
+/* STEP FLOW */
+.step-flow{display:flex;flex-direction:column;gap:0;margin-bottom:24px;}
+.step{display:flex;gap:16px;position:relative;}
+.step:not(:last-child)::after{content:'';position:absolute;left:18px;top:38px;bottom:-2px;width:1px;background:var(--steel-faint);}
+.step-num{width:36px;height:36px;border-radius:50%;background:var(--steel-light);border:1px solid var(--steel-rule);display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:12px;color:var(--amber);font-weight:700;flex-shrink:0;margin-top:2px;}
+.step-content{flex:1;padding-bottom:20px;}
+.step-title{font-size:13px;font-weight:600;color:var(--ice);margin-bottom:3px;}
+.step-desc{font-size:12px;color:var(--ice-mid);line-height:1.55;}
+.step-cmd{font-family:monospace;font-size:11px;color:var(--teal);background:var(--teal-bg);padding:3px 8px;border-radius:3px;display:inline-block;margin-top:4px;}
+/* ARCH BOXES */
+.arch-diagram{background:var(--steel-mid);border:1px solid var(--steel-rule);border-radius:6px;padding:24px;margin-bottom:24px;}
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:3px;font-size:10px;font-weight:600;letter-spacing:0.05em;font-family:monospace;}
+.badge-green{background:var(--green-bg);color:var(--green);}
+.badge-amber{background:var(--amber-glow);color:var(--amber);}
+.badge-blue{background:var(--blue-bg);color:var(--blue);}
+.badge-teal{background:var(--teal-bg);color:var(--teal);}
+.badge-red{background:var(--red-bg);color:var(--red);}
+.badge-purple{background:var(--purple-bg);color:var(--purple);}
+/* ALERT BOX */
+.alert{padding:12px 16px;border-radius:5px;font-size:13px;margin-bottom:20px;border-left:3px solid;}
+.alert-info{background:var(--blue-bg);border-left-color:var(--blue);color:var(--ice-mid);}
+.alert-warn{background:var(--amber-glow);border-left-color:var(--amber);color:var(--ice-mid);}
+.alert strong{color:var(--ice);}
+/* PACKAGE GRID */
+.package-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.package-card{background:var(--steel-mid);border:1px solid var(--steel-rule);border-radius:5px;padding:14px 16px;}
+.pkg-name{font-family:monospace;font-size:12px;color:var(--amber);font-weight:600;margin-bottom:4px;}
+.pkg-bw{font-size:20px;font-weight:800;color:var(--ice);}
+.pkg-kbps{font-size:10px;color:var(--ice-dim);font-family:monospace;margin-top:2px;}
+/* SCROLLBAR */
+.sidebar-nav::-webkit-scrollbar{width:4px;}
+.sidebar-nav::-webkit-scrollbar-track{background:transparent;}
+.sidebar-nav::-webkit-scrollbar-thumb{background:var(--steel-faint);border-radius:2px;}
+/* RESPONSIVE */
+@media(max-width:900px){
+  .sidebar{width:220px;}
+  .main{margin-left:220px;}
+  .section-page{padding:32px 28px;}
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .package-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+<div class="topstrip"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-label">JTL Networks</div>
+    <div class="brand-name">Network Automation<br>API Suite</div>
+    <div class="brand-sub">v1.0 · Technical Reference</div>
+  </div>
+  <div class="sidebar-nav">
+    <div class="nav-group-label">Overview</div>
+    <div class="nav-item active" onclick="nav('pg-overview',this)"><span class="nav-dot"></span>Introduction</div>
+    <div class="nav-item" onclick="nav('pg-arch',this)"><span class="nav-dot"></span>Architecture</div>
+    <div class="nav-item" onclick="nav('pg-auth',this)"><span class="nav-dot"></span>Authentication</div>
+
+    <div class="nav-group-label">OLT Provisioning API</div>
+    <div class="nav-item" onclick="nav('pg-olt-overview',this)"><span class="nav-dot"></span>Overview</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-olt-provision',this)"><span class="nav-dot"></span>Provision ONU</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-olt-lifecycle',this)"><span class="nav-dot"></span>Lifecycle Ops</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-olt-discovery',this)"><span class="nav-dot"></span>ONU Discovery</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-olt-packages',this)"><span class="nav-dot"></span>Packages</div>
+    <div class="nav-item" onclick="nav('pg-olt-flow',this)"><span class="nav-dot"></span>Provisioning Flow</div>
+
+    <div class="nav-group-label">M6K P2P Circuit API</div>
+    <div class="nav-item" onclick="nav('pg-m6k-overview',this)"><span class="nav-dot"></span>Overview</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-m6k-vpws',this)"><span class="nav-dot"></span>Create VPWS</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-m6k-local',this)"><span class="nav-dot"></span>Create LOCAL-XC</div>
+    <div class="nav-item nav-indent" onclick="nav('pg-m6k-manage',this)"><span class="nav-dot"></span>Manage Circuits</div>
+    <div class="nav-item" onclick="nav('pg-m6k-flow',this)"><span class="nav-dot"></span>Circuit Flow</div>
+
+    <div class="nav-group-label">Reference</div>
+    <div class="nav-item" onclick="nav('pg-errors',this)"><span class="nav-dot"></span>Error Codes</div>
+    <div class="nav-item" onclick="nav('pg-deploy',this)"><span class="nav-dot"></span>Deployment</div>
+  </div>
+  <div class="sidebar-footer">
+    <strong>OLT API</strong> port 8000<br>
+    <strong>M6K API</strong> port 8001<br>
+    Server: 172.16.37.18
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+<!-- ════════════════════════════════════════════════════ OVERVIEW -->
+<div class="section-page active" id="pg-overview">
+  <div class="section-eyebrow">§ 1 · Introduction</div>
+  <h1 class="section-title">JTL Network<br>Automation APIs</h1>
+  <p class="section-lead">
+    Two REST APIs enabling JTL's BSS platform to fully automate broadband service delivery —
+    GPON ONU provisioning on ZTE OLTs, and P2P circuit creation on the M6000 IP/MPLS backbone.
+  </p>
+
+  <div class="stat-grid">
+    <div class="stat-cell">
+      <div class="stat-label">APIs</div>
+      <div class="stat-value">2</div>
+      <div class="stat-sub">OLT + M6K Circuit</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">OLT Endpoints</div>
+      <div class="stat-value green">14</div>
+      <div class="stat-sub">BSS + management</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">M6K Endpoints</div>
+      <div class="stat-value blue">7</div>
+      <div class="stat-sub">VPWS + lifecycle</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">OLT Platforms</div>
+      <div class="stat-value teal">5</div>
+      <div class="stat-sub">C300/C320/C600/C620/C650</div>
+    </div>
+  </div>
+
+  <div class="sub-title">What These APIs Do</div>
+  <table class="data-table">
+    <thead><tr><th>API</th><th>Trigger</th><th>Automated Action</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-amber">OLT Provisioning</span></td>
+        <td>Customer activated in BSS</td>
+        <td>SSH to OLT → authorize ONU → T-CONT → GEM → service-port → ACS → WiFi</td>
+        <td>Customer online with WiFi credentials delivered by SMS + Email</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-amber">OLT Provisioning</span></td>
+        <td>Customer suspended/activated</td>
+        <td>SSH to OLT → set admin-state disable/enable</td>
+        <td>Traffic blocked/restored within seconds</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">M6K Circuit</span></td>
+        <td>Corporate P2P service ordered</td>
+        <td>SSH to both PEs → configure xconnect + MPLS PW → poll UP state</td>
+        <td>L2 P2P circuit live within 90 seconds</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">M6K Circuit</span></td>
+        <td>P2P service non-payment</td>
+        <td>SSH to A-end PE → shutdown AC interface</td>
+        <td>Circuit suspended, config intact for reactivation</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-divider"></div>
+  <div class="sub-title">Technology Stack</div>
+  <table class="data-table">
+    <thead><tr><th>Component</th><th>Technology</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>API Framework</td><td><code>FastAPI 0.111 + Python 3.11</code></td><td>Async REST endpoints, Pydantic validation, OpenAPI docs</td></tr>
+      <tr><td>SSH Transport</td><td><code>asyncssh 2.14</code></td><td>Non-blocking SSH sessions to OLTs and PE routers</td></tr>
+      <tr><td>OLT Database</td><td><code>MariaDB 10.11 + SQLAlchemy async</code></td><td>ONU inventory, service records, audit trail</td></tr>
+      <tr><td>M6K Storage</td><td><code>SQLite + aiosqlite</code></td><td>Lightweight circuit audit log</td></tr>
+      <tr><td>ACS Integration</td><td><code>GenicACS REST API (port 7557)</code></td><td>TR-069 WiFi and PPPoE parameter push</td></tr>
+      <tr><td>Notifications</td><td><code>SMTP + Africa's Talking SMS/WhatsApp</code></td><td>Customer WiFi credential delivery</td></tr>
+      <tr><td>Containers</td><td><code>Docker + Docker Compose</code></td><td>Production deployment on 172.16.37.18</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ ARCHITECTURE -->
+<div class="section-page" id="pg-arch">
+  <div class="section-eyebrow">§ 2 · Architecture</div>
+  <h1 class="section-title">System Architecture</h1>
+  <p class="section-lead">Both APIs sit between the BSS and the network equipment, translating high-level business intents into vendor-specific CLI commands.</p>
+
+  <div class="arch-diagram">
+    <svg viewBox="0 0 860 420" style="width:100%;font-family:monospace;">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#5a6e88"/>
+        </marker>
+        <marker id="arr-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#f5a623"/>
+        </marker>
+        <marker id="arr-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#3dd68c"/>
+        </marker>
+        <marker id="arr-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#5b9cf6"/>
+        </marker>
+        <marker id="arr-teal" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#36c5cc"/>
+        </marker>
+      </defs>
+      <!-- BSS -->
+      <rect x="20" y="160" width="110" height="100" rx="5" fill="#161c26" stroke="#252f40"/>
+      <text x="75" y="200" text-anchor="middle" fill="#e8eef8" font-size="12" font-weight="bold">BSS</text>
+      <text x="75" y="218" text-anchor="middle" fill="#5a6e88" font-size="10">Asia Info</text>
+      <text x="75" y="233" text-anchor="middle" fill="#9aafc8" font-size="9">REST Client</text>
+
+      <!-- OLT API -->
+      <rect x="200" y="80" width="145" height="100" rx="5" fill="#1e2736" stroke="#f5a623" stroke-width="1.5"/>
+      <rect x="200" y="80" width="145" height="4" rx="5" fill="#f5a623"/>
+      <text x="272" y="122" text-anchor="middle" fill="#e8eef8" font-size="12" font-weight="bold">OLT API</text>
+      <text x="272" y="138" text-anchor="middle" fill="#9aafc8" font-size="9">FastAPI · port 8000</text>
+      <text x="272" y="152" text-anchor="middle" fill="#9aafc8" font-size="9">MariaDB · asyncssh</text>
+      <text x="272" y="165" text-anchor="middle" fill="#f5a623" font-size="9">172.16.37.18</text>
+
+      <!-- M6K API -->
+      <rect x="200" y="240" width="145" height="100" rx="5" fill="#1e2736" stroke="#5b9cf6" stroke-width="1.5"/>
+      <rect x="200" y="240" width="145" height="4" rx="5" fill="#5b9cf6"/>
+      <text x="272" y="282" text-anchor="middle" fill="#e8eef8" font-size="12" font-weight="bold">M6K Circuit API</text>
+      <text x="272" y="298" text-anchor="middle" fill="#9aafc8" font-size="9">FastAPI · port 8001</text>
+      <text x="272" y="312" text-anchor="middle" fill="#9aafc8" font-size="9">SQLite · asyncssh</text>
+      <text x="272" y="325" text-anchor="middle" fill="#5b9cf6" font-size="9">172.16.37.18</text>
+
+      <!-- Arrows BSS → APIs -->
+      <line x1="130" y1="185" x2="198" y2="148" stroke="#f5a623" stroke-width="1.5" marker-end="url(#arr-amber)"/>
+      <line x1="130" y1="225" x2="198" y2="270" stroke="#5b9cf6" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+      <text x="162" y="165" text-anchor="middle" fill="#f5a623" font-size="8">X-API-Key</text>
+      <text x="162" y="260" text-anchor="middle" fill="#5b9cf6" font-size="8">X-Api-Key</text>
+
+      <!-- OLTs group -->
+      <rect x="420" y="40" width="120" height="65" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="480" y="65" text-anchor="middle" fill="#3dd68c" font-size="11" font-weight="bold">ZTE C300/C320</text>
+      <text x="480" y="80" text-anchor="middle" fill="#5a6e88" font-size="9">ZXAN Platform</text>
+      <text x="480" y="93" text-anchor="middle" fill="#5a6e88" font-size="9">192.168.248.x · SSH</text>
+
+      <rect x="420" y="120" width="120" height="65" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="480" y="145" text-anchor="middle" fill="#3dd68c" font-size="11" font-weight="bold">ZTE C600/C620</text>
+      <text x="480" y="160" text-anchor="middle" fill="#5a6e88" font-size="9">TITAN Platform</text>
+      <text x="480" y="173" text-anchor="middle" fill="#5a6e88" font-size="9">SSH · asyncssh</text>
+
+      <!-- ACS -->
+      <rect x="420" y="200" width="120" height="65" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="480" y="225" text-anchor="middle" fill="#36c5cc" font-size="11" font-weight="bold">GenicACS</text>
+      <text x="480" y="240" text-anchor="middle" fill="#5a6e88" font-size="9">TR-069 · port 7547</text>
+      <text x="480" y="253" text-anchor="middle" fill="#5a6e88" font-size="9">197.232.61.253</text>
+
+      <!-- MariaDB -->
+      <rect x="420" y="280" width="120" height="50" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="480" y="305" text-anchor="middle" fill="#b47aed" font-size="11" font-weight="bold">MariaDB</text>
+      <text x="480" y="320" text-anchor="middle" fill="#5a6e88" font-size="9">ONU · Audit · VLANs</text>
+
+      <!-- OLT API → OLTs arrows -->
+      <line x1="345" y1="115" x2="418" y2="80" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#arr-green)"/>
+      <line x1="345" y1="128" x2="418" y2="152" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#arr-green)"/>
+      <line x1="345" y1="155" x2="418" y2="225" stroke="#36c5cc" stroke-width="1.2" marker-end="url(#arr-teal)"/>
+      <line x1="345" y1="165" x2="418" y2="295" stroke="#b47aed" stroke-width="1.2" marker-end="url(#arr)"/>
+
+      <!-- PE Routers -->
+      <rect x="420" y="355" width="120" height="55" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="480" y="378" text-anchor="middle" fill="#5b9cf6" font-size="11" font-weight="bold">ZTE M6000</text>
+      <text x="480" y="393" text-anchor="middle" fill="#5a6e88" font-size="9">PE Routers</text>
+      <text x="480" y="405" text-anchor="middle" fill="#5a6e88" font-size="9">ZXR10 CLI · SSH</text>
+
+      <!-- M6K API → PE Routers -->
+      <line x1="345" y1="310" x2="418" y2="375" stroke="#5b9cf6" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+
+      <!-- Customer notifications -->
+      <rect x="610" y="60" width="120" height="80" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="670" y="88" text-anchor="middle" fill="#e8eef8" font-size="11" font-weight="bold">Customer</text>
+      <text x="670" y="103" text-anchor="middle" fill="#5a6e88" font-size="9">SMS · Email</text>
+      <text x="670" y="116" text-anchor="middle" fill="#5a6e88" font-size="9">WhatsApp</text>
+      <text x="670" y="130" text-anchor="middle" fill="#3dd68c" font-size="9">WiFi Credentials</text>
+
+      <!-- ACS → Customer (notifications) -->
+      <line x1="540" y1="215" x2="608" y2="120" stroke="#36c5cc" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-teal)"/>
+      <text x="590" y="168" text-anchor="middle" fill="#36c5cc" font-size="8" transform="rotate(-38,590,168)">TR-069</text>
+
+      <!-- Labels -->
+      <text x="430" y="20" fill="#5a6e88" font-size="9">SSH port 22</text>
+      <line x1="430" y1="22" x2="540" y2="22" stroke="#252f40" stroke-width="1"/>
+
+      <!-- Legend -->
+      <rect x="620" y="200" width="220" height="120" rx="4" fill="#161c26" stroke="#252f40"/>
+      <text x="635" y="218" fill="#5a6e88" font-size="9" font-weight="600" letter-spacing="0.1em">LEGEND</text>
+      <line x1="635" y1="228" x2="660" y2="228" stroke="#f5a623" stroke-width="1.5"/>
+      <text x="668" y="232" fill="#9aafc8" font-size="9">OLT API flow</text>
+      <line x1="635" y1="244" x2="660" y2="244" stroke="#5b9cf6" stroke-width="1.5"/>
+      <text x="668" y="248" fill="#9aafc8" font-size="9">M6K API flow</text>
+      <line x1="635" y1="260" x2="660" y2="260" stroke="#3dd68c" stroke-width="1.2"/>
+      <text x="668" y="264" fill="#9aafc8" font-size="9">SSH to OLTs</text>
+      <line x1="635" y1="276" x2="660" y2="276" stroke="#36c5cc" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="668" y="280" fill="#9aafc8" font-size="9">TR-069 / ACS</text>
+      <line x1="635" y1="292" x2="660" y2="292" stroke="#b47aed" stroke-width="1.2"/>
+      <text x="668" y="296" fill="#9aafc8" font-size="9">Database (MariaDB)</text>
+    </svg>
+  </div>
+
+  <div class="sub-title">Driver Platform Abstraction</div>
+  <table class="data-table">
+    <thead><tr><th>Platform</th><th>Models</th><th>Driver</th><th>CLI Context for Service Port</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge badge-amber">ZXAN</span></td>
+        <td>C300, C320</td>
+        <td><code>ZXANDriver</code></td>
+        <td><code>interface gpon-onu_{f}/{s}/{p}:{id}</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-blue">TITAN</span></td>
+        <td>C600, C620, C650</td>
+        <td><code>TITANDriver</code></td>
+        <td><code>interface gpon_onu-{f}/{s}/{p}:{id}</code></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ AUTH -->
+<div class="section-page" id="pg-auth">
+  <div class="section-eyebrow">§ 3 · Authentication</div>
+  <h1 class="section-title">Authentication</h1>
+  <p class="section-lead">Both APIs use static API key authentication via HTTP headers. No OAuth or session tokens required.</p>
+
+  <div class="sub-title">OLT Provisioning API</div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">HTTP Header</span></div>
+    <div class="code-body"><pre>X-API-Key: &lt;your-api-key&gt;</pre></div>
+  </div>
+  <p style="font-size:13px;color:var(--ice-mid);margin-bottom:20px;">
+    Configured via <code>OLT_API_KEYS</code> environment variable (comma-separated for multiple keys).
+    Missing or invalid key returns <code>401 Unauthorized</code>.
+  </p>
+
+  <div class="sub-title">M6K Circuit API</div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">HTTP Header</span></div>
+    <div class="code-body"><pre>X-Api-Key: JTL-BSS-2026-M6KPROV</pre></div>
+  </div>
+
+  <div class="alert alert-warn">
+    <strong>Security note:</strong> Both APIs are deployed on an internal network segment (172.16.37.18). Ensure the server is not exposed to the public internet without a TLS-terminating reverse proxy (nginx).
+  </div>
+
+  <div class="section-divider"></div>
+  <div class="sub-title">Common Response Envelope</div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">JSON</span></div>
+    <div class="code-body"><pre>{
+  <span class="kw">"success"</span>: <span class="val">true</span>,
+  <span class="kw">"data"</span>: { <span class="cmt">/* endpoint-specific payload */</span> }
+}
+
+<span class="cmt">// Error response</span>
+{
+  <span class="kw">"success"</span>: <span class="val">false</span>,
+  <span class="kw">"error"</span>: {
+    <span class="kw">"code"</span>:    <span class="str">"OLT_CONNECTION_ERROR"</span>,
+    <span class="kw">"message"</span>: <span class="str">"SSH connection to 192.168.248.10 refused"</span>
+  }
+}</pre></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OLT OVERVIEW -->
+<div class="section-page" id="pg-olt-overview">
+  <div class="section-eyebrow">§ 4 · OLT Provisioning API</div>
+  <h1 class="section-title">OLT Provisioning API</h1>
+  <p class="section-lead">
+    Automates full GPON ONU lifecycle — from first plug-in to decommission — on ZTE C300, C320, C600, C620, and C650 OLTs.
+  </p>
+  <div class="stat-grid">
+    <div class="stat-cell">
+      <div class="stat-label">Base URL</div>
+      <div class="stat-value" style="font-size:14px;color:var(--ice)">:8000</div>
+      <div class="stat-sub">172.16.37.18:8000</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">BSS Prefix</div>
+      <div class="stat-value" style="font-size:14px;color:var(--amber)">/</div>
+      <div class="stat-sub">root — no prefix</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Mgmt Prefix</div>
+      <div class="stat-value" style="font-size:14px;color:var(--amber)">/api/v1</div>
+      <div class="stat-sub">inventory CRUD</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Provision Time</div>
+      <div class="stat-value green">~2 min</div>
+      <div class="stat-sub">incl. ACS inform wait</div>
+    </div>
+  </div>
+
+  <div class="sub-title">Endpoint Map</div>
+  <table class="data-table">
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-amber">POST</span></td><td><code>/provision</code></td><td>Full 14-step ONU provisioning</td></tr>
+      <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/provision/{customer_id}</code></td><td>Deprovision and remove from OLT + DB</td></tr>
+      <tr><td><span class="badge badge-blue">PUT</span></td><td><code>/provision/{customer_id}/suspend</code></td><td>Suspend — disable ONU traffic</td></tr>
+      <tr><td><span class="badge badge-blue">PUT</span></td><td><code>/provision/{customer_id}/activate</code></td><td>Activate — re-enable ONU traffic</td></tr>
+      <tr><td><span class="badge badge-blue">PUT</span></td><td><code>/provision/{customer_id}/package</code></td><td>Change bandwidth package</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/onu/{olt_id}/unconfigured</code></td><td>List unregistered ONUs on a PON port</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/onu/{olt_id}/find/{sn}</code></td><td>Find ONU by serial across all ports</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/v1/olts</code></td><td>OLT inventory CRUD</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/api/v1/olts/{id}/health</code></td><td>Test SSH connectivity to OLT</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/health</code></td><td>API health check</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OLT PROVISION -->
+<div class="section-page" id="pg-olt-provision">
+  <div class="section-eyebrow">§ 4.1 · OLT API</div>
+  <h1 class="section-title">Provision ONU</h1>
+  <p class="section-lead">Single endpoint executes the complete 14-step GPON provisioning workflow.</p>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-post">POST</span>
+      <span class="ep-path">/provision</span>
+      <span class="ep-summary">Full ONU provisioning — authorize → T-CONT → GEM → service-port → ACS → WiFi → notify</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">
+        Provisions a customer's ONU end-to-end. The API locates the ONU by serial number
+        on the OLT, assigns the next available ONU ID, runs all GPON configuration commands,
+        registers the ONU with ACS (TR-069), waits for the ONU to phone home (up to 120s),
+        pushes WiFi credentials via ACS, saves to database, and sends SMS/Email/WhatsApp notifications.
+      </div>
+      <div class="sub-title">Request Body</div>
+      <table class="param-table">
+        <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td class="param-name">customer_id</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Unique customer identifier, e.g. CUST-0012345</td></tr>
+          <tr><td class="param-name">customer_name</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Full name for notification messages</td></tr>
+          <tr><td class="param-name">customer_phone</td><td class="param-type">string</td><td><span class="p-opt">optional</span></td><td>Phone for SMS/WhatsApp delivery</td></tr>
+          <tr><td class="param-name">customer_email</td><td class="param-type">string</td><td><span class="p-opt">optional</span></td><td>Email for credential delivery</td></tr>
+          <tr><td class="param-name">onu_serial_number</td><td class="param-type">string(16)</td><td><span class="p-req">required</span></td><td>ONU serial, e.g. ZTEG12345678</td></tr>
+          <tr><td class="param-name">onu_model</td><td class="param-type">string</td><td><span class="p-opt">optional</span></td><td>ONU type profile on OLT. Default: F660</td></tr>
+          <tr><td class="param-name">olt_id</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>OLT name from inventory, e.g. OLT-NBI-01</td></tr>
+          <tr><td class="param-name">package_id</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Bandwidth package, e.g. GPON-10M</td></tr>
+          <tr><td class="param-name">service_vlan</td><td class="param-type">int</td><td><span class="p-req">required</span></td><td>Customer VLAN tag (C-VLAN / inner tag)</td></tr>
+          <tr><td class="param-name">oam_vlan</td><td class="param-type">int</td><td><span class="p-opt">optional</span></td><td>OAM management VLAN. Default: 1450</td></tr>
+          <tr><td class="param-name">svlan</td><td class="param-type">int</td><td><span class="p-opt">optional</span></td><td>Service VLAN (S-VLAN) for Q-in-Q. Omit for single-tagged.</td></tr>
+          <tr><td class="param-name">description</td><td class="param-type">string</td><td><span class="p-opt">optional</span></td><td>ONU description tag on OLT</td></tr>
+        </tbody>
+      </table>
+      <div class="sub-title">Example Request</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">curl</span></div>
+        <div class="code-body"><pre>curl -X POST http://172.16.37.18:8000/provision \
+  -H <span class="str">"X-API-Key: your-key"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d '{
+    <span class="kw">"customer_id"</span>:       <span class="str">"CUST-0012345"</span>,
+    <span class="kw">"customer_name"</span>:     <span class="str">"John Kamau"</span>,
+    <span class="kw">"customer_phone"</span>:    <span class="str">"+254712345678"</span>,
+    <span class="kw">"customer_email"</span>:    <span class="str">"jkamau@example.com"</span>,
+    <span class="kw">"onu_serial_number"</span>: <span class="str">"ZTEGABC12345"</span>,
+    <span class="kw">"onu_model"</span>:         <span class="str">"F660"</span>,
+    <span class="kw">"olt_id"</span>:            <span class="str">"OLT-NBI-01"</span>,
+    <span class="kw">"package_id"</span>:        <span class="str">"GPON-10M"</span>,
+    <span class="kw">"service_vlan"</span>:      <span class="num">200</span>,
+    <span class="kw">"description"</span>:      <span class="str">"John Kamau - Westlands"</span>
+  }'</pre></div>
+      </div>
+      <div class="sub-title">Response (201 Created)</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">JSON</span></div>
+        <div class="code-body"><pre>{
+  <span class="kw">"success"</span>: <span class="val">true</span>,
+  <span class="kw">"data"</span>: {
+    <span class="kw">"customer_id"</span>:           <span class="str">"CUST-0012345"</span>,
+    <span class="kw">"onu_db_id"</span>:             <span class="num">42</span>,
+    <span class="kw">"serial_number"</span>:         <span class="str">"ZTEGABC12345"</span>,
+    <span class="kw">"olt_name"</span>:              <span class="str">"OLT-NBI-01"</span>,
+    <span class="kw">"onu_location"</span>:          <span class="str">"1/7/2:5"</span>,
+    <span class="kw">"package_id"</span>:            <span class="str">"GPON-10M"</span>,
+    <span class="kw">"wifi_ssid_2g"</span>:          <span class="str">"JTL-CUST0012-2G"</span>,
+    <span class="kw">"wifi_ssid_5g"</span>:          <span class="str">"JTL-CUST0012-5G"</span>,
+    <span class="kw">"acs_informed"</span>:          <span class="val">true</span>,
+    <span class="kw">"phase_state_confirmed"</span>: <span class="val">true</span>,
+    <span class="kw">"notifications_sent"</span>:    [<span class="str">"sms"</span>, <span class="str">"email"</span>, <span class="str">"whatsapp"</span>],
+    <span class="kw">"duration_ms"</span>:           <span class="num">127450</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OLT LIFECYCLE -->
+<div class="section-page" id="pg-olt-lifecycle">
+  <div class="section-eyebrow">§ 4.2 · OLT API</div>
+  <h1 class="section-title">Lifecycle Operations</h1>
+  <p class="section-lead">Suspend, activate, change package, and deprovision endpoints — all identified by customer_id.</p>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-delete">DELETE</span>
+      <span class="ep-path">/provision/{customer_id}</span>
+      <span class="ep-summary">Remove ONU from OLT and database</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Runs <code>no onu {id}</code> on the OLT port and removes all service-port and T-CONT config. Deletes ONU record from database. Irreversible.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">curl</span></div>
+        <div class="code-body"><pre>curl -X DELETE http://172.16.37.18:8000/provision/CUST-0012345 \
+  -H <span class="str">"X-API-Key: your-key"</span></pre></div>
+      </div>
+      <p style="font-size:12px;color:var(--ice-dim);">Returns <code>204 No Content</code> on success.</p>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-put">PUT</span>
+      <span class="ep-path">/provision/{customer_id}/suspend</span>
+      <span class="ep-summary">Suspend — block all ONU traffic</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Sets ONU admin-state to <code>disable</code> on the OLT. Config is preserved; reactivation restores service instantly.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Response</span></div>
+        <div class="code-body"><pre>{ <span class="kw">"success"</span>: <span class="val">true</span>, <span class="kw">"data"</span>: { <span class="kw">"customer_id"</span>: <span class="str">"CUST-0012345"</span>, <span class="kw">"state"</span>: <span class="str">"suspended"</span> } }</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-put">PUT</span>
+      <span class="ep-path">/provision/{customer_id}/activate</span>
+      <span class="ep-summary">Activate — restore ONU traffic</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Sets ONU admin-state to <code>enable</code>. Used after suspension (payment received) or initial test provisioning.</div>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-put">PUT</span>
+      <span class="ep-path">/provision/{customer_id}/package</span>
+      <span class="ep-summary">Change bandwidth package — live T-CONT reconfiguration</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Reconfigures the T-CONT DBA profile on the OLT to match the new package bandwidth. Takes effect immediately without disrupting existing sessions.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Request Body</span></div>
+        <div class="code-body"><pre>{ <span class="kw">"package_id"</span>: <span class="str">"GPON-50M"</span> }</pre></div>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">Response</span></div>
+        <div class="code-body"><pre>{ <span class="kw">"success"</span>: <span class="val">true</span>, <span class="kw">"data"</span>: { <span class="kw">"customer_id"</span>: <span class="str">"CUST-0012345"</span>, <span class="kw">"package_id"</span>: <span class="str">"GPON-50M"</span>, <span class="kw">"bandwidth_kbps"</span>: <span class="num">51200</span> } }</pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OLT DISCOVERY -->
+<div class="section-page" id="pg-olt-discovery">
+  <div class="section-eyebrow">§ 4.3 · OLT API</div>
+  <h1 class="section-title">ONU Discovery</h1>
+  <p class="section-lead">Query the OLT in real time for unconfigured ONUs waiting to be provisioned.</p>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-get">GET</span>
+      <span class="ep-path">/onu/{olt_id}/unconfigured</span>
+      <span class="ep-summary">List unregistered ONUs on a specific PON port</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Runs <code>show gpon onu uncfg gpon-olt_{f}/{s}/{p}</code> on the OLT and returns parsed ONU serial numbers and status. Use to confirm ONU is visible before provisioning.</div>
+      <table class="param-table">
+        <thead><tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td class="param-name">olt_id</td><td class="param-type">string (path)</td><td>—</td><td>OLT name, e.g. OLT-NBI-01</td></tr>
+          <tr><td class="param-name">frame</td><td class="param-type">int (query)</td><td>1</td><td>OLT chassis frame</td></tr>
+          <tr><td class="param-name">slot</td><td class="param-type">int (query)</td><td>7</td><td>Line card slot</td></tr>
+          <tr><td class="param-name">port</td><td class="param-type">int (query)</td><td>2</td><td>GPON port number</td></tr>
+        </tbody>
+      </table>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">curl</span></div>
+        <div class="code-body"><pre>curl "http://172.16.37.18:8000/onu/OLT-NBI-01/unconfigured?slot=7&port=2" \
+  -H <span class="str">"X-API-Key: your-key"</span></pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-get">GET</span>
+      <span class="ep-path">/onu/{olt_id}/find/{sn}</span>
+      <span class="ep-summary">Find ONU by serial number — scans all known PON ports</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Scans all GPON ports on slots 7 and 9 (ports 0–15) to locate an ONU by its serial number. Returns the port location when found. Used by the provisioning flow internally, and by BSS to verify ONU connectivity.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">curl</span></div>
+        <div class="code-body"><pre>curl "http://172.16.37.18:8000/onu/OLT-NBI-01/find/ZTEGABC12345" \
+  -H <span class="str">"X-API-Key: your-key"</span></pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OLT PACKAGES -->
+<div class="section-page" id="pg-olt-packages">
+  <div class="section-eyebrow">§ 4.4 · OLT API</div>
+  <h1 class="section-title">Bandwidth Packages</h1>
+  <p class="section-lead">Fixed package IDs map to T-CONT DBA profiles on the OLT. T-CONT type 3 (assured + best-effort), assured bandwidth = 85% of package rate.</p>
+
+  <div class="package-grid">
+    <div class="package-card"><div class="pkg-name">GPON-5M</div><div class="pkg-bw">5</div><div class="pkg-kbps">Mbps · 5,120 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-10M</div><div class="pkg-bw">10</div><div class="pkg-kbps">Mbps · 10,240 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-20M</div><div class="pkg-bw">20</div><div class="pkg-kbps">Mbps · 20,480 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-35M</div><div class="pkg-bw">35</div><div class="pkg-kbps">Mbps · 35,840 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-50M</div><div class="pkg-bw">50</div><div class="pkg-kbps">Mbps · 51,200 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-100M</div><div class="pkg-bw">100</div><div class="pkg-kbps">Mbps · 102,400 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-200M</div><div class="pkg-bw">200</div><div class="pkg-kbps">Mbps · 204,800 kbps</div></div>
+    <div class="package-card"><div class="pkg-name">GPON-1000M</div><div class="pkg-bw">1000</div><div class="pkg-kbps">Mbps · 1,024,000 kbps</div></div>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>WiFi SSID Format:</strong> Auto-generated from customer_id.
+    SSID 2.4GHz: <code>JTL-{CUST_ID[:8].upper()}-2G</code> &nbsp;·&nbsp;
+    SSID 5GHz: <code>JTL-{CUST_ID[:8].upper()}-5G</code> &nbsp;·&nbsp;
+    Password: 12-character random alphanumeric, same for both bands.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ OLT FLOW -->
+<div class="section-page" id="pg-olt-flow">
+  <div class="section-eyebrow">§ 4.5 · OLT API</div>
+  <h1 class="section-title">14-Step Provisioning Flow</h1>
+  <p class="section-lead">Sequence of operations executed by <code>POST /provision</code> — from BSS request to customer online with WiFi.</p>
+
+  <!-- Sequence diagram -->
+  <div class="arch-diagram">
+    <svg viewBox="0 0 760 560" style="width:100%;font-family:monospace;">
+      <defs>
+        <marker id="sarr" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#9aafc8"/>
+        </marker>
+        <marker id="sarr-a" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#f5a623"/>
+        </marker>
+        <marker id="sarr-g" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#3dd68c"/>
+        </marker>
+        <marker id="sarr-t" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#36c5cc"/>
+        </marker>
+        <marker id="sarr-b" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#5b9cf6"/>
+        </marker>
+      </defs>
+      <!-- Lifeline headers -->
+      <rect x="10" y="10" width="80" height="32" rx="3" fill="#1e2736" stroke="#f5a623"/>
+      <text x="50" y="30" text-anchor="middle" fill="#f5a623" font-size="10" font-weight="bold">BSS</text>
+
+      <rect x="130" y="10" width="80" height="32" rx="3" fill="#1e2736" stroke="#f5a623"/>
+      <text x="170" y="30" text-anchor="middle" fill="#f5a623" font-size="10" font-weight="bold">OLT API</text>
+
+      <rect x="260" y="10" width="80" height="32" rx="3" fill="#1e2736" stroke="#3dd68c"/>
+      <text x="300" y="30" text-anchor="middle" fill="#3dd68c" font-size="10" font-weight="bold">OLT SSH</text>
+
+      <rect x="390" y="10" width="80" height="32" rx="3" fill="#1e2736" stroke="#36c5cc"/>
+      <text x="430" y="30" text-anchor="middle" fill="#36c5cc" font-size="10" font-weight="bold">GenicACS</text>
+
+      <rect x="520" y="10" width="80" height="32" rx="3" fill="#1e2736" stroke="#b47aed"/>
+      <text x="560" y="30" text-anchor="middle" fill="#b47aed" font-size="10" font-weight="bold">MariaDB</text>
+
+      <rect x="650" y="10" width="80" height="32" rx="3" fill="#1e2736" stroke="#9aafc8"/>
+      <text x="690" y="30" text-anchor="middle" fill="#9aafc8" font-size="10" font-weight="bold">Customer</text>
+
+      <!-- Lifelines -->
+      <line x1="50" y1="42" x2="50" y2="555" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="170" y1="42" x2="170" y2="555" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="300" y1="42" x2="300" y2="555" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="430" y1="42" x2="430" y2="555" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="560" y1="42" x2="560" y2="555" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="690" y1="42" x2="690" y2="555" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <!-- Step 1 -->
+      <line x1="50" y1="65" x2="163" y2="65" stroke="#f5a623" stroke-width="1.5" marker-end="url(#sarr-a)"/>
+      <text x="107" y="60" text-anchor="middle" fill="#f5a623" font-size="9">POST /provision</text>
+
+      <!-- Step 2: DB check -->
+      <line x1="170" y1="80" x2="553" y2="80" stroke="#b47aed" stroke-width="1.2" marker-end="url(#sarr)"/>
+      <text x="360" y="76" text-anchor="middle" fill="#b47aed" font-size="8">2. Check duplicate customer_id</text>
+
+      <!-- Step 3: Scan ports -->
+      <line x1="170" y1="100" x2="293" y2="100" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="96" text-anchor="middle" fill="#3dd68c" font-size="8">3. show gpon onu uncfg (scan ports)</text>
+      <line x1="300" y1="115" x2="177" y2="115" stroke="#3dd68c" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sarr-g)"/>
+      <text x="238" y="127" text-anchor="middle" fill="#5a6e88" font-size="8">frame/slot/port found</text>
+
+      <!-- Step 4: next ONU ID -->
+      <line x1="170" y1="140" x2="293" y2="140" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="136" text-anchor="middle" fill="#3dd68c" font-size="8">4. show running-config → next ONU ID</text>
+
+      <!-- Step 5: authorize -->
+      <line x1="170" y1="160" x2="293" y2="160" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="156" text-anchor="middle" fill="#3dd68c" font-size="8">5. authorize_onu (onu N type F660 sn ...)</text>
+
+      <!-- Step 6: tcont + gemport -->
+      <line x1="170" y1="180" x2="293" y2="180" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="176" text-anchor="middle" fill="#3dd68c" font-size="8">6. tcont 1 profile Fix_10M + gemport 1</text>
+
+      <!-- Step 7: service-port -->
+      <line x1="170" y1="200" x2="293" y2="200" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="196" text-anchor="middle" fill="#3dd68c" font-size="8">7. service-port (ethuni user-vlan N svlan N)</text>
+
+      <!-- Step 8: ACS config -->
+      <line x1="170" y1="220" x2="293" y2="220" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="216" text-anchor="middle" fill="#3dd68c" font-size="8">8. configure ACS TR-069 endpoint</text>
+
+      <!-- Step 9: write -->
+      <line x1="170" y1="240" x2="293" y2="240" stroke="#3dd68c" stroke-width="1.2" marker-end="url(#sarr-g)"/>
+      <text x="232" y="236" text-anchor="middle" fill="#3dd68c" font-size="8">9. write (save config)</text>
+
+      <!-- Step 10: save DB -->
+      <line x1="170" y1="260" x2="553" y2="260" stroke="#b47aed" stroke-width="1.2" marker-end="url(#sarr)"/>
+      <text x="360" y="256" text-anchor="middle" fill="#b47aed" font-size="8">10. INSERT ONU record to DB</text>
+
+      <!-- Step 11: wait inform -->
+      <rect x="150" y="270" width="40" height="55" rx="2" fill="#1a6b47" stroke="#3dd68c" stroke-width="0.5"/>
+      <text x="170" y="301" text-anchor="middle" fill="#3dd68c" font-size="8" transform="rotate(-90,170,300)">wait 120s</text>
+      <line x1="170" y1="275" x2="423" y2="275" stroke="#36c5cc" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sarr-t)"/>
+      <text x="296" y="271" text-anchor="middle" fill="#36c5cc" font-size="8">11. Poll _lastInform (ONU phones home)</text>
+      <line x1="430" y1="320" x2="177" y2="320" stroke="#36c5cc" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sarr-t)"/>
+      <text x="303" y="333" text-anchor="middle" fill="#5a6e88" font-size="8">TR-069 Inform received ✓</text>
+
+      <!-- Step 12: push WiFi -->
+      <line x1="170" y1="345" x2="423" y2="345" stroke="#36c5cc" stroke-width="1.2" marker-end="url(#sarr-t)"/>
+      <text x="296" y="341" text-anchor="middle" fill="#36c5cc" font-size="8">12. Push WiFi (TR-181 setParameterValues)</text>
+      <line x1="430" y1="360" x2="177" y2="360" stroke="#36c5cc" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#sarr-t)"/>
+      <text x="303" y="373" text-anchor="middle" fill="#5a6e88" font-size="8">WiFi configured ✓</text>
+
+      <!-- Step 13: notify -->
+      <line x1="170" y1="385" x2="683" y2="385" stroke="#9aafc8" stroke-width="1.2" marker-end="url(#sarr)"/>
+      <text x="427" y="381" text-anchor="middle" fill="#9aafc8" font-size="8">13. SMS + Email + WhatsApp (WiFi creds)</text>
+
+      <!-- Step 14: response -->
+      <line x1="163" y1="410" x2="57" y2="410" stroke="#f5a623" stroke-width="1.5" stroke-dasharray="5,2" marker-end="url(#sarr-a)"/>
+      <text x="107" y="406" text-anchor="middle" fill="#f5a623" font-size="9">14. 201 Created — ProvisionResponse</text>
+
+      <!-- Duration bar -->
+      <rect x="10" y="420" width="730" height="20" rx="2" fill="#1e2736" stroke="#252f40"/>
+      <text x="375" y="433" text-anchor="middle" fill="#5a6e88" font-size="8">Total duration: ~2 min (dominated by 120s ACS inform wait)</text>
+    </svg>
+  </div>
+
+  <div class="sub-title">Step-by-Step Breakdown</div>
+  <div class="step-flow">
+    <div class="step"><div class="step-num">1</div><div class="step-content"><div class="step-title">Resolve OLT by name</div><div class="step-desc">Look up OLT record in DB by the string name (e.g. OLT-NBI-01). 404 if not found.</div></div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-content"><div class="step-title">Duplicate check</div><div class="step-desc">Verify customer_id has no existing ONU in DB. Returns 409 Conflict if already provisioned.</div></div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-content"><div class="step-title">Locate ONU by serial</div><div class="step-desc">Scans GPON ports (slots 7+9, ports 0–15) with <code>show gpon onu uncfg</code>. 422 if not found.</div><span class="step-cmd">show gpon onu uncfg gpon-olt_1/7/2</span></div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-content"><div class="step-title">Determine next ONU ID</div><div class="step-desc">Parses <code>show running-config</code> for the port to find highest existing ONU ID + 1.</div></div></div>
+    <div class="step"><div class="step-num">5</div><div class="step-content"><div class="step-title">Authorize ONU</div><div class="step-desc">Binds ONU serial to an ONU ID slot on the port.</div><span class="step-cmd">onu 5 type F660 sn ZTEGABC12345</span></div></div>
+    <div class="step"><div class="step-num">6</div><div class="step-content"><div class="step-title">Configure T-CONT + GEM port</div><div class="step-desc">Sets DBA profile (bandwidth) via T-CONT and links to GEM port.</div><span class="step-cmd">tcont 1 profile Fix_10M &nbsp;·&nbsp; gemport 1 tcont 1</span></div></div>
+    <div class="step"><div class="step-num">7</div><div class="step-content"><div class="step-title">Create service port</div><div class="step-desc">Maps Ethernet UNI to service VLAN. Supports Q-in-Q (svlan) for double-tagging.</div><span class="step-cmd">service-port 1 ethuni eth_0/1 user-vlan 200 svlan 200</span></div></div>
+    <div class="step"><div class="step-num">8</div><div class="step-content"><div class="step-title">Configure ACS endpoint</div><div class="step-desc">Pushes TR-069 ACS URL, username, and password to ONU over CLI.</div><span class="step-cmd">tr069-serv-url http://197.232.61.253:7547</span></div></div>
+    <div class="step"><div class="step-num">9</div><div class="step-content"><div class="step-title">Save OLT config</div><div class="step-desc">Issues <code>write</code> command to persist configuration.</div></div></div>
+    <div class="step"><div class="step-num">10</div><div class="step-content"><div class="step-title">Save ONU to database</div><div class="step-desc">Persists ONU record, WiFi credentials, customer info, and location to MariaDB.</div></div></div>
+    <div class="step"><div class="step-num">11</div><div class="step-content"><div class="step-title">Wait for TR-069 Inform</div><div class="step-desc">Polls GenicACS every 5s for up to 120s until ONU phones home. Non-blocking if timeout.</div><span class="step-cmd">GET /devices?query={"_id":"ZTEG..."}&amp;projection=_lastInform</span></div></div>
+    <div class="step"><div class="step-num">12</div><div class="step-content"><div class="step-title">Push WiFi via ACS (TR-181)</div><div class="step-desc">Sets SSID and passphrase on both 2.4GHz and 5GHz bands via GenicACS task API.</div><span class="step-cmd">Device.WiFi.SSID.1.SSID · Device.WiFi.AccessPoint.1.Security.KeyPassphrase</span></div></div>
+    <div class="step"><div class="step-num">13</div><div class="step-content"><div class="step-title">Send customer notifications</div><div class="step-desc">Delivers WiFi SSID + password via SMS (Africa's Talking), Email (SMTP), and WhatsApp.</div></div></div>
+    <div class="step"><div class="step-num">14</div><div class="step-content"><div class="step-title">Return ProvisionResponse</div><div class="step-desc">Returns 201 with ONU location, WiFi SSIDs, ACS status, notifications sent, and duration.</div></div></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ M6K OVERVIEW -->
+<div class="section-page" id="pg-m6k-overview">
+  <div class="section-eyebrow">§ 5 · M6K P2P Circuit API</div>
+  <h1 class="section-title">M6K P2P Circuit API</h1>
+  <p class="section-lead">
+    Provisions, manages, and monitors Point-to-Point L2VPN circuits on JTL's ZTE M6000-S and M6000-8S IP/MPLS PE routers.
+  </p>
+  <div class="stat-grid">
+    <div class="stat-cell">
+      <div class="stat-label">Base URL</div>
+      <div class="stat-value" style="font-size:14px;color:var(--ice)">:8001</div>
+      <div class="stat-sub">172.16.37.18:8001</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">VC ID Pool</div>
+      <div class="stat-value blue">5000–9999</div>
+      <div class="stat-sub">auto-assigned</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">PW Poll Timeout</div>
+      <div class="stat-value teal">90s</div>
+      <div class="stat-sub">5s interval</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Circuit Types</div>
+      <div class="stat-value green">3</div>
+      <div class="stat-sub">VPWS · LOCAL-XC · VLAN-XC</div>
+    </div>
+  </div>
+
+  <div class="sub-title">Endpoint Map</div>
+  <table class="data-table">
+    <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge badge-amber">POST</span></td><td><code>/circuit/vpws</code></td><td>Create VPWS pseudowire between two PEs</td></tr>
+      <tr><td><span class="badge badge-amber">POST</span></td><td><code>/circuit/local-xc</code></td><td>Create LOCAL cross-connect on one PE</td></tr>
+      <tr><td><span class="badge badge-red">DELETE</span></td><td><code>/circuit/{circuit_id}</code></td><td>Remove circuit from both PEs</td></tr>
+      <tr><td><span class="badge badge-blue">PUT</span></td><td><code>/circuit/{circuit_id}/suspend</code></td><td>Shutdown A-end AC interface</td></tr>
+      <tr><td><span class="badge badge-blue">PUT</span></td><td><code>/circuit/{circuit_id}/activate</code></td><td>No-shutdown A-end AC interface</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/circuit/{circuit_id}/pw-state</code></td><td>Live PW state from router CLI</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/circuits</code></td><td>List all circuits (filter by customer_id)</td></tr>
+      <tr><td><span class="badge badge-green">GET</span></td><td><code>/health</code></td><td>API health check</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ M6K VPWS -->
+<div class="section-page" id="pg-m6k-vpws">
+  <div class="section-eyebrow">§ 5.1 · M6K API</div>
+  <h1 class="section-title">Create VPWS Circuit</h1>
+  <p class="section-lead">VPWS pseudowire between two PE routers. Auto-assigns VC ID, pushes xconnect to both ends, polls PW state.</p>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-post">POST</span>
+      <span class="ep-path">/circuit/vpws</span>
+      <span class="ep-summary">Create VPWS pseudowire — xconnect on A+Z PEs, poll PW UP</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">
+        Validates the circuit ID is unique, auto-assigns a VC ID from pool 5000–9999,
+        SSHs to both A-end and Z-end PE routers and pushes xconnect configuration,
+        then polls PW state for up to 90s. Supports both untagged and VLAN-tagged (sub-interface) attachment circuits.
+      </div>
+      <div class="sub-title">Request Body</div>
+      <table class="param-table">
+        <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td class="param-name">circuit_id</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Unique circuit ID, e.g. P2P-00001234</td></tr>
+          <tr><td class="param-name">customer_id</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Customer identifier for billing linkage</td></tr>
+          <tr><td class="param-name">description</td><td class="param-type">string</td><td><span class="p-opt">optional</span></td><td>Human-readable circuit label</td></tr>
+          <tr><td class="param-name">a_end.router</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>PE router name from config.yaml registry</td></tr>
+          <tr><td class="param-name">a_end.interface</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Physical interface, e.g. GigabitEthernet3/0/1</td></tr>
+          <tr><td class="param-name">a_end.sub_interface</td><td class="param-type">int</td><td><span class="p-opt">optional</span></td><td>Sub-interface number for VLAN-tagged AC</td></tr>
+          <tr><td class="param-name">a_end.vlan</td><td class="param-type">int</td><td><span class="p-opt">optional</span></td><td>VLAN tag for dot1q encapsulation</td></tr>
+          <tr><td class="param-name">z_end.router</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Z-end PE router name</td></tr>
+          <tr><td class="param-name">z_end.interface</td><td class="param-type">string</td><td><span class="p-req">required</span></td><td>Z-end physical interface</td></tr>
+          <tr><td class="param-name">vc_id</td><td class="param-type">int 5000–9999</td><td><span class="p-opt">optional</span></td><td>MPLS VC label. Auto-assigned if omitted.</td></tr>
+          <tr><td class="param-name">bandwidth_mbps</td><td class="param-type">int</td><td><span class="p-opt">optional</span></td><td>Informational — for capacity planning records</td></tr>
+        </tbody>
+      </table>
+      <div class="sub-title">Example Request</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">curl</span></div>
+        <div class="code-body"><pre>curl -X POST http://172.16.37.18:8001/circuit/vpws \
+  -H <span class="str">"X-Api-Key: JTL-BSS-2026-M6KPROV"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d '{
+    <span class="kw">"circuit_id"</span>:   <span class="str">"P2P-00001234"</span>,
+    <span class="kw">"customer_id"</span>:  <span class="str">"CORP-00234"</span>,
+    <span class="kw">"description"</span>:  <span class="str">"Nairobi HQ to Mombasa Branch 100M"</span>,
+    <span class="kw">"a_end"</span>: {
+      <span class="kw">"router"</span>:        <span class="str">"M6K-NBI-PE1"</span>,
+      <span class="kw">"interface"</span>:     <span class="str">"GigabitEthernet3/0/1"</span>,
+      <span class="kw">"sub_interface"</span>: <span class="num">100</span>,
+      <span class="kw">"vlan"</span>:          <span class="num">100</span>
+    },
+    <span class="kw">"z_end"</span>: {
+      <span class="kw">"router"</span>:    <span class="str">"M6K-MSA-PE1"</span>,
+      <span class="kw">"interface"</span>: <span class="str">"GigabitEthernet2/0/5"</span>
+    },
+    <span class="kw">"bandwidth_mbps"</span>: <span class="num">100</span>
+  }'</pre></div>
+      </div>
+      <div class="sub-title">CLI Commands Generated (A-end)</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">ZXR10 CLI — M6K-NBI-PE1</span></div>
+        <div class="code-body"><pre>configure terminal
+interface GigabitEthernet3/0/1.100
+ encapsulation dot1q 100
+ xconnect 10.0.0.3 5001 pw-class default
+!
+end
+write</pre></div>
+      </div>
+      <div class="sub-title">Response (201 Created)</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">JSON</span></div>
+        <div class="code-body"><pre>{
+  <span class="kw">"success"</span>:    <span class="val">true</span>,
+  <span class="kw">"circuit_id"</span>: <span class="str">"P2P-00001234"</span>,
+  <span class="kw">"message"</span>:    <span class="str">"Circuit P2P-00001234 VPWS active. VC=5001 A=M6K-NBI-PE1 Z=M6K-MSA-PE1"</span>,
+  <span class="kw">"data"</span>: {
+    <span class="kw">"vc_id"</span>:     <span class="num">5001</span>,
+    <span class="kw">"pw_state"</span>: <span class="str">"UP"</span>,
+    <span class="kw">"a_end"</span>:    <span class="str">"M6K-NBI-PE1 GigabitEthernet3/0/1.100"</span>,
+    <span class="kw">"z_end"</span>:    <span class="str">"M6K-MSA-PE1 GigabitEthernet2/0/5"</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ M6K LOCAL -->
+<div class="section-page" id="pg-m6k-local">
+  <div class="section-eyebrow">§ 5.2 · M6K API</div>
+  <h1 class="section-title">Create LOCAL Cross-Connect</h1>
+  <p class="section-lead">Same-PoP local cross-connect — connects two interfaces on a single PE without MPLS pseudowire.</p>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-post">POST</span>
+      <span class="ep-path">/circuit/local-xc</span>
+      <span class="ep-summary">LOCAL-XC on a single PE router</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Used for colocation or same-PoP service connections where both endpoints are on the same router. Issues a single <code>connect</code> command on one PE.</div>
+      <div class="sub-title">CLI Command Generated</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">ZXR10 CLI</span></div>
+        <div class="code-body"><pre>configure terminal
+connect P2P-00001234 GigabitEthernet3/0/1 GigabitEthernet3/0/2
+!
+end
+write</pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ M6K MANAGE -->
+<div class="section-page" id="pg-m6k-manage">
+  <div class="section-eyebrow">§ 5.3 · M6K API</div>
+  <h1 class="section-title">Manage Circuits</h1>
+  <p class="section-lead">Delete, suspend, activate, and query live PW state for existing circuits.</p>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-delete">DELETE</span>
+      <span class="ep-path">/circuit/{circuit_id}</span>
+      <span class="ep-summary">Delete — remove xconnect from both PEs</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Issues <code>no xconnect</code> on both A-end and Z-end PEs. For VLAN-tagged circuits, also removes the sub-interface. Returns 204.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">ZXR10 CLI (A-end)</span></div>
+        <div class="code-body"><pre>interface GigabitEthernet3/0/1.100
+ no xconnect 10.0.0.3 5001 pw-class default
+!
+no interface GigabitEthernet3/0/1.100</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-put">PUT</span>
+      <span class="ep-path">/circuit/{circuit_id}/suspend</span>
+      <span class="ep-summary">Suspend — shutdown A-end AC interface</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Issues <code>shutdown</code> on the A-end attachment circuit interface. The xconnect config is preserved; reactivation is instantaneous.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">ZXR10 CLI</span></div>
+        <div class="code-body"><pre>interface GigabitEthernet3/0/1
+ shutdown</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-get">GET</span>
+      <span class="ep-path">/circuit/{circuit_id}/pw-state</span>
+      <span class="ep-summary">Live PW state from router</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">SSHs to the A-end PE and runs <code>show mpls l2vpn vc {vc_id}</code>. Parses output for UP or DOWN state. VPWS circuits only.</div>
+      <div class="code-block">
+        <div class="code-header"><span class="code-lang">JSON Response</span></div>
+        <div class="code-body"><pre>{
+  <span class="kw">"circuit_id"</span>: <span class="str">"P2P-00001234"</span>,
+  <span class="kw">"vc_id"</span>:      <span class="num">5001</span>,
+  <span class="kw">"pw_state"</span>:  <span class="str">"UP"</span>,
+  <span class="kw">"router"</span>:    <span class="str">"M6K-NBI-PE1"</span>
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint-card">
+    <div class="ep-header">
+      <span class="method m-get">GET</span>
+      <span class="ep-path">/circuits</span>
+      <span class="ep-summary">List all circuits — optional customer_id filter</span>
+    </div>
+    <div class="ep-body">
+      <div class="ep-desc">Returns all circuit records from the in-memory store. Use <code>?customer_id=CORP-00234</code> to filter. Used by BSS for reconciliation.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ M6K FLOW -->
+<div class="section-page" id="pg-m6k-flow">
+  <div class="section-eyebrow">§ 5.4 · M6K API</div>
+  <h1 class="section-title">VPWS Circuit Flow</h1>
+  <p class="section-lead">Sequence of operations for <code>POST /circuit/vpws</code> — from BSS request to live PW.</p>
+
+  <div class="arch-diagram">
+    <svg viewBox="0 0 700 380" style="width:100%;font-family:monospace;">
+      <defs>
+        <marker id="fa" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#9aafc8"/>
+        </marker>
+        <marker id="fa-b" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#5b9cf6"/>
+        </marker>
+        <marker id="fa-g" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#3dd68c"/>
+        </marker>
+        <marker id="fa-a" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#f5a623"/>
+        </marker>
+        <marker id="fa-t" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+          <polygon points="0 0, 7 2.5, 0 5" fill="#36c5cc"/>
+        </marker>
+      </defs>
+      <!-- Headers -->
+      <rect x="10" y="10" width="80" height="28" rx="3" fill="#1e2736" stroke="#5b9cf6"/>
+      <text x="50" y="28" text-anchor="middle" fill="#5b9cf6" font-size="10" font-weight="bold">BSS</text>
+
+      <rect x="130" y="10" width="90" height="28" rx="3" fill="#1e2736" stroke="#5b9cf6"/>
+      <text x="175" y="28" text-anchor="middle" fill="#5b9cf6" font-size="10" font-weight="bold">M6K API</text>
+
+      <rect x="270" y="10" width="90" height="28" rx="3" fill="#1e2736" stroke="#3dd68c"/>
+      <text x="315" y="28" text-anchor="middle" fill="#3dd68c" font-size="10" font-weight="bold">A-end PE</text>
+
+      <rect x="410" y="10" width="90" height="28" rx="3" fill="#1e2736" stroke="#3dd68c"/>
+      <text x="455" y="28" text-anchor="middle" fill="#3dd68c" font-size="10" font-weight="bold">Z-end PE</text>
+
+      <rect x="550" y="10" width="90" height="28" rx="3" fill="#1e2736" stroke="#b47aed"/>
+      <text x="595" y="28" text-anchor="middle" fill="#b47aed" font-size="10" font-weight="bold">Audit Log</text>
+
+      <!-- Lifelines -->
+      <line x1="50" y1="38" x2="50" y2="370" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="175" y1="38" x2="175" y2="370" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="315" y1="38" x2="315" y2="370" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="455" y1="38" x2="455" y2="370" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+      <line x1="595" y1="38" x2="595" y2="370" stroke="#252f40" stroke-width="1" stroke-dasharray="4,3"/>
+
+      <line x1="50" y1="58" x2="168" y2="58" stroke="#5b9cf6" stroke-width="1.5" marker-end="url(#fa-b)"/>
+      <text x="110" y="54" text-anchor="middle" fill="#5b9cf6" font-size="9">POST /circuit/vpws</text>
+
+      <line x1="175" y1="75" x2="175" y2="90" stroke="#252f40" stroke-width="1"/>
+      <text x="230" y="86" fill="#9aafc8" font-size="8">Validate circuit_id · assign VC ID</text>
+
+      <line x1="175" y1="100" x2="308" y2="100" stroke="#3dd68c" stroke-width="1.5" marker-end="url(#fa-g)"/>
+      <text x="242" y="96" text-anchor="middle" fill="#3dd68c" font-size="9">SSH → xconnect (A-end)</text>
+
+      <line x1="315" y1="116" x2="182" y2="116" stroke="#3dd68c" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#fa-g)"/>
+      <text x="248" y="128" text-anchor="middle" fill="#5a6e88" font-size="8">config pushed ✓</text>
+
+      <line x1="175" y1="140" x2="448" y2="140" stroke="#3dd68c" stroke-width="1.5" marker-end="url(#fa-g)"/>
+      <text x="312" y="136" text-anchor="middle" fill="#3dd68c" font-size="9">SSH → xconnect (Z-end)</text>
+
+      <line x1="455" y1="156" x2="182" y2="156" stroke="#3dd68c" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#fa-g)"/>
+      <text x="318" y="168" text-anchor="middle" fill="#5a6e88" font-size="8">config pushed ✓</text>
+
+      <!-- PW poll -->
+      <rect x="155" y="175" width="40" height="60" rx="2" fill="#2a4d8a" stroke="#5b9cf6" stroke-width="0.5"/>
+      <text x="175" y="208" text-anchor="middle" fill="#5b9cf6" font-size="8" transform="rotate(-90,175,208)">poll 90s</text>
+      <line x1="175" y1="178" x2="308" y2="178" stroke="#5b9cf6" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#fa-b)"/>
+      <text x="242" y="174" text-anchor="middle" fill="#5b9cf6" font-size="8">show mpls l2vpn vc 5001</text>
+      <line x1="315" y1="192" x2="182" y2="192" stroke="#5b9cf6" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#fa-b)"/>
+      <text x="248" y="218" text-anchor="middle" fill="#5b9cf6" font-size="8">pw_state: UP</text>
+
+      <line x1="175" y1="245" x2="588" y2="245" stroke="#b47aed" stroke-width="1.2" marker-end="url(#fa)"/>
+      <text x="382" y="241" text-anchor="middle" fill="#b47aed" font-size="8">Audit log: circuit created, vc_id, duration</text>
+
+      <line x1="168" y1="270" x2="57" y2="270" stroke="#5b9cf6" stroke-width="1.5" stroke-dasharray="5,2" marker-end="url(#fa-b)"/>
+      <text x="110" y="266" text-anchor="middle" fill="#5b9cf6" font-size="9">201 — circuit UP, vc_id=5001</text>
+
+      <!-- MPLS transport label -->
+      <rect x="265" y="300" width="230" height="40" rx="3" fill="#161c26" stroke="#252f40"/>
+      <text x="380" y="318" text-anchor="middle" fill="#5a6e88" font-size="9">MPLS Backbone Transport</text>
+      <text x="380" y="332" text-anchor="middle" fill="#36c5cc" font-size="9">A-end PE ←──── VPWS PW ────→ Z-end PE</text>
+    </svg>
+  </div>
+
+  <div class="sub-title">Error: Rollback on PE Failure</div>
+  <div class="alert alert-warn">
+    <strong>Partial failure handling:</strong> If the A-end SSH commands succeed but Z-end fails,
+    the service rolls back by issuing <code>no xconnect</code> on the A-end before returning a 500 error.
+    Circuit IDs are not consumed on failure.
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ ERRORS -->
+<div class="section-page" id="pg-errors">
+  <div class="section-eyebrow">§ 6 · Reference</div>
+  <h1 class="section-title">Error Codes</h1>
+  <p class="section-lead">All errors follow the standard envelope with a machine-readable code and human-readable message.</p>
+
+  <div class="sub-title">OLT Provisioning API</div>
+  <table class="data-table">
+    <thead><tr><th>HTTP</th><th>Code</th><th>Cause</th></tr></thead>
+    <tbody>
+      <tr><td>401</td><td><code>UNAUTHORIZED</code></td><td>Missing or invalid X-API-Key header</td></tr>
+      <tr><td>404</td><td><code>ONU_NOT_FOUND</code></td><td>ONU not found on any port (not powered/connected)</td></tr>
+      <tr><td>404</td><td><code>NOT_FOUND</code></td><td>OLT name not in inventory</td></tr>
+      <tr><td>409</td><td><code>CONFLICT</code></td><td>customer_id already provisioned, or ONU ID slot full</td></tr>
+      <tr><td>422</td><td><code>VALIDATION_ERROR</code></td><td>Request body failed Pydantic validation</td></tr>
+      <tr><td>422</td><td><code>OLT_COMMAND_ERROR</code></td><td>OLT rejected a CLI command</td></tr>
+      <tr><td>502</td><td><code>OLT_CONNECTION_ERROR</code></td><td>SSH connection to OLT failed</td></tr>
+      <tr><td>504</td><td><code>OLT_TIMEOUT</code></td><td>OLT SSH command timed out</td></tr>
+    </tbody>
+  </table>
+
+  <div class="sub-title">M6K Circuit API</div>
+  <table class="data-table">
+    <thead><tr><th>HTTP</th><th>Code</th><th>Cause</th></tr></thead>
+    <tbody>
+      <tr><td>401</td><td><code>UNAUTHORIZED</code></td><td>Invalid X-Api-Key</td></tr>
+      <tr><td>404</td><td><code>CIRCUIT_NOT_FOUND</code></td><td>circuit_id not in store</td></tr>
+      <tr><td>409</td><td><code>CIRCUIT_EXISTS</code></td><td>circuit_id already active</td></tr>
+      <tr><td>422</td><td><code>ROUTER_NOT_FOUND</code></td><td>Router name not in config.yaml registry</td></tr>
+      <tr><td>500</td><td><code>SSH_ERROR</code></td><td>SSH to PE router failed</td></tr>
+      <tr><td>503</td><td><code>PW_NOT_UP</code></td><td>PW did not come UP within 90s timeout</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════════════════════════════════ DEPLOY -->
+<div class="section-page" id="pg-deploy">
+  <div class="section-eyebrow">§ 7 · Deployment</div>
+  <h1 class="section-title">Deployment</h1>
+  <p class="section-lead">Both services run as Docker containers on the production API server at 172.16.37.18.</p>
+
+  <div class="sub-title">OLT API — docker-compose.yml (key services)</div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">YAML</span></div>
+    <div class="code-body"><pre>services:
+  api:
+    image: olt-provisioning-api
+    ports: [<span class="str">"8000:8000"</span>]
+    environment:
+      OLT_API_KEYS: <span class="str">"your-secret-key"</span>
+      OLT_DB_HOST: db
+      OLT_ACS_URL: <span class="str">"http://197.232.61.253:7547"</span>
+      OLT_ACS_MANAGEMENT_URL: <span class="str">"http://197.232.61.253:7557"</span>
+      OLT_AT_API_KEY: <span class="str">"your-africas-talking-key"</span>
+  db:
+    image: mariadb:10.11
+    environment:
+      MYSQL_DATABASE: olt_provisioning
+      MYSQL_USER: olt_api</pre></div>
+  </div>
+
+  <div class="sub-title">Quick Start</div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">shell</span></div>
+    <div class="code-body"><pre><span class="cmt"># OLT API</span>
+cd /opt/olt-provisioning-api
+docker compose up -d
+
+<span class="cmt"># M6K API</span>
+cd /opt/m6k-p2p-api
+docker compose up -d
+
+<span class="cmt"># Verify</span>
+curl http://localhost:8000/health   <span class="cmt"># {"status": "ok"}</span>
+curl http://localhost:8001/health   <span class="cmt"># {"status": "ok"}</span></pre></div>
+  </div>
+
+  <div class="sub-title">Database Migration (OLT API)</div>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">shell</span></div>
+    <div class="code-body"><pre>docker compose exec api alembic upgrade head</pre></div>
+  </div>
+
+  <div class="alert alert-info">
+    <strong>OpenAPI Docs:</strong> Interactive documentation available at
+    <code>http://172.16.37.18:8000/docs</code> (OLT API) and
+    <code>http://172.16.37.18:8001/docs</code> (M6K API).
+    BSS Portal: <code>http://172.16.37.18:8000/portal</code>
+  </div>
+</div>
+
+</div><!-- .main -->
+
+<script>
+function nav(pageId, el) {
+  document.querySelectorAll('.section-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

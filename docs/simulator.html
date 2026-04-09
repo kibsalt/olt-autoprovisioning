@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JTL OLT Provisioning - Live Simulator</title>
+<style>
+:root { --primary: #1a56db; --success: #059669; --warning: #d97706; --danger: #dc2626; --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --border: #334155; --accent: #3b82f6; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace; background: var(--bg); color: var(--text); min-height: 100vh; }
+.header { background: linear-gradient(135deg, #1e3a5f, #1a56db); padding: 24px 32px; display: flex; align-items: center; gap: 16px; }
+.header h1 { font-size: 20px; font-weight: 700; }
+.header .badge { background: var(--success); color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; }
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.grid { display: grid; grid-template-columns: 340px 1fr; gap: 24px; }
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+.panel-body { padding: 18px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group input, .form-group select { width: 100%; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: inherit; font-size: 13px; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+.form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; transition: all 0.2s; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-success { background: var(--success); color: white; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.terminal { background: #000; border-radius: 8px; padding: 16px; font-size: 12px; line-height: 1.7; max-height: 600px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+.terminal .prompt { color: #22c55e; }
+.terminal .cmd { color: #f8fafc; }
+.terminal .response { color: #60a5fa; }
+.terminal .success { color: #34d399; }
+.terminal .error { color: #f87171; }
+.terminal .info { color: #fbbf24; }
+.terminal .dim { color: #64748b; }
+.terminal .ssh { color: #c084fc; }
+.wifi-card { background: linear-gradient(135deg, #1e40af, #7c3aed); border-radius: 12px; padding: 20px; margin-top: 16px; color: white; }
+.wifi-card h3 { font-size: 14px; margin-bottom: 12px; opacity: 0.9; }
+.wifi-row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 13px; }
+.wifi-row .label { opacity: 0.7; }
+.wifi-row .value { font-weight: 700; }
+.sms-card { background: #065f46; border-radius: 12px; padding: 16px; margin-top: 12px; font-size: 12px; line-height: 1.6; }
+.sms-card .sms-header { color: #6ee7b7; font-weight: 600; margin-bottom: 6px; }
+.status-bar { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.status-item { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.status-pending { background: #374151; color: #9ca3af; }
+.status-active { background: #064e3b; color: #6ee7b7; }
+.status-current { background: #1e3a5f; color: #93c5fd; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+.olt-info { background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; }
+.olt-info div { display: flex; justify-content: space-between; padding: 3px 0; }
+.olt-info .label { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>JTL OLT Provisioning Simulator</h1>
+  <span class="badge">LIVE API - 172.16.37.18</span>
+</div>
+
+<div class="container">
+<div class="grid">
+
+<!-- LEFT PANEL: Form -->
+<div>
+  <div class="panel">
+    <div class="panel-header">OLT Selection</div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Select OLT</label>
+        <select id="oltSelect">
+          <option value="1" data-model="C300" data-platform="ZXAN" data-location="Nairobi POP - Site A">OLT-C300-NAIROBI-01</option>
+          <option value="2" data-model="C300" data-platform="ZXAN" data-location="Nairobi POP - Site B">OLT-C300-NAIROBI-02</option>
+          <option value="3" data-model="C320" data-platform="ZXAN" data-location="Mombasa POP">OLT-C320-MOMBASA-01</option>
+          <option value="4" data-model="C320" data-platform="ZXAN" data-location="Kisumu POP" selected>OLT-C320-KISUMU-01</option>
+          <option value="5" data-model="C600" data-platform="TITAN" data-location="Westlands POP">OLT-C600-WESTLANDS-01</option>
+          <option value="6" data-model="C600" data-platform="TITAN" data-location="Upper Hill POP">OLT-C600-UPPERHILL-01</option>
+          <option value="7" data-model="C620" data-platform="TITAN" data-location="Karen POP">OLT-C620-KAREN-01</option>
+          <option value="8" data-model="C620" data-platform="TITAN" data-location="Kilimani POP">OLT-C620-KILIMANI-01</option>
+          <option value="9" data-model="C650" data-platform="TITAN" data-location="Thika POP">OLT-C650-THIKA-01</option>
+          <option value="10" data-model="C650" data-platform="TITAN" data-location="Nakuru POP">OLT-C650-NAKURU-01</option>
+        </select>
+      </div>
+      <div class="olt-info" id="oltInfo">
+        <div><span class="label">Model</span><span id="infoModel">C320</span></div>
+        <div><span class="label">Platform</span><span id="infoPlatform">ZXAN</span></div>
+        <div><span class="label">Location</span><span id="infoLocation">Kisumu POP</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <div class="panel-header">Customer Details</div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label>Customer Name</label>
+        <input type="text" id="custName" value="Jane Wanjiku" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>Customer ID (BSS)</label>
+        <input type="text" id="custId" value="KSM-50001" placeholder="e.g. KSM-50001">
+      </div>
+      <div class="form-group">
+        <label>Serial Number</label>
+        <input type="text" id="serialNum" value="ZTEGC8FA5001" placeholder="e.g. ZTEGC8FA5001">
+      </div>
+      <div class="form-group">
+        <label>ONU Type</label>
+        <select id="onuType">
+          <option value="ZXHN_F680" selected>ZXHN F680 (Dual-band WiFi)</option>
+          <option value="ZXHN_F660">ZXHN F660 (Single-band)</option>
+          <option value="ZXHN_F670L">ZXHN F670L (WiFi 6)</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Frame</label><input type="number" id="frame" value="1" min="0"></div>
+        <div class="form-group"><label>Slot</label><input type="number" id="slot" value="1" min="0"></div>
+        <div class="form-group"><label>Port</label><input type="number" id="port" value="1" min="0"></div>
+      </div>
+      <div class="form-group">
+        <label>Service Plan</label>
+        <select id="servicePlan">
+          <option value="1">RESIDENTIAL 10Mbps</option>
+          <option value="2">RESIDENTIAL 20Mbps</option>
+          <option value="3" selected>RESIDENTIAL 50Mbps</option>
+          <option value="4">BUSINESS 100Mbps</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="custEmail" value="jane.wanjiku@gmail.com">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" id="custPhone" value="+254722100200">
+      </div>
+
+      <button class="btn btn-primary" id="btnProvision" onclick="startProvisioning()">Provision Customer</button>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-warning" id="btnSuspend" onclick="suspendCustomer()" disabled>Suspend</button>
+        <button class="btn btn-success" id="btnEnable" onclick="enableCustomer()" disabled>Re-enable</button>
+      </div>
+      <button class="btn btn-danger" id="btnRemove" onclick="removeCustomer()" disabled style="margin-top:8px">Remove Customer</button>
+    </div>
+  </div>
+
+  <!-- WiFi Card -->
+  <div class="wifi-card" id="wifiCard" style="display:none">
+    <h3>WiFi Credentials Generated</h3>
+    <div class="wifi-row"><span class="label">2.4GHz SSID</span><span class="value" id="wifiSsid2g">—</span></div>
+    <div class="wifi-row"><span class="label">5GHz SSID</span><span class="value" id="wifiSsid5g">—</span></div>
+    <div class="wifi-row"><span class="label">Password</span><span class="value" id="wifiPass">—</span></div>
+  </div>
+
+  <!-- SMS Preview -->
+  <div class="sms-card" id="smsCard" style="display:none">
+    <div class="sms-header">SMS to <span id="smsTo"></span></div>
+    <div id="smsBody"></div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL: Terminal -->
+<div>
+  <div class="panel">
+    <div class="panel-header">Provisioning Terminal</div>
+    <div class="panel-body" style="padding:0">
+      <div class="terminal" id="terminal"></div>
+    </div>
+  </div>
+  <div class="status-bar" id="statusBar"></div>
+</div>
+
+</div>
+</div>
+
+<script>
+const steps = [
+  'Verify OLT', 'Discover ONUs', 'Authorize ONU', 'Configure ACS',
+  'Configure WiFi', 'Apply Service', 'Save to DB', 'Send Notifications',
+];
+let currentOnu = null;
+
+function getOltInfo() {
+  const sel = document.getElementById('oltSelect');
+  const opt = sel.options[sel.selectedIndex];
+  return { id: sel.value, name: opt.text, model: opt.dataset.model, platform: opt.dataset.platform, location: opt.dataset.location };
+}
+
+function updateOltInfo() {
+  const info = getOltInfo();
+  document.getElementById('infoModel').textContent = info.model;
+  document.getElementById('infoPlatform').textContent = info.platform;
+  document.getElementById('infoLocation').textContent = info.location;
+}
+document.getElementById('oltSelect').addEventListener('change', updateOltInfo);
+
+function generatePassword(len) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let r = ''; for (let i = 0; i < len; i++) r += chars[Math.floor(Math.random() * chars.length)];
+  return r;
+}
+
+function log(html) { document.getElementById('terminal').innerHTML += html + '\n'; autoScroll(); }
+function autoScroll() { const t = document.getElementById('terminal'); t.scrollTop = t.scrollHeight; }
+function clearTerminal() { document.getElementById('terminal').innerHTML = ''; }
+
+function updateStatus(activeIdx) {
+  const bar = document.getElementById('statusBar');
+  bar.innerHTML = steps.map((s, i) => {
+    const cls = i < activeIdx ? 'status-active' : i === activeIdx ? 'status-current' : 'status-pending';
+    return `<span class="status-item ${cls}">${i+1}. ${s}</span>`;
+  }).join('');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function startProvisioning() {
+  const olt = getOltInfo();
+  const name = document.getElementById('custName').value;
+  const custId = document.getElementById('custId').value;
+  const serial = document.getElementById('serialNum').value;
+  const onuType = document.getElementById('onuType').value;
+  const frame = document.getElementById('frame').value;
+  const slot = document.getElementById('slot').value;
+  const port = document.getElementById('port').value;
+  const plan = document.getElementById('servicePlan');
+  const planName = plan.options[plan.selectedIndex].text;
+  const email = document.getElementById('custEmail').value;
+  const phone = document.getElementById('custPhone').value;
+
+  const firstName = name.split(' ')[0];
+  const ssid2g = firstName + '_2.4G';
+  const ssid5g = firstName + '_5G';
+  const wifiPass = generatePassword(12);
+
+  const isZXAN = olt.platform === 'ZXAN';
+  const ifOlt = isZXAN ? `gpon-olt_${frame}/${slot}/${port}` : `gpon_olt-${frame}/${slot}/${port}`;
+  const ifOnu = isZXAN ? `gpon-onu_${frame}/${slot}/${port}:1` : `gpon_onu-${frame}/${slot}/${port}:1`;
+
+  document.getElementById('btnProvision').disabled = true;
+  clearTerminal();
+
+  log(`<span class="info">========================================</span>`);
+  log(`<span class="info">  CUSTOMER PROVISIONING</span>`);
+  log(`<span class="info">  OLT: ${olt.name} (${olt.model}/${olt.platform})</span>`);
+  log(`<span class="info">  Customer: ${name} (${custId})</span>`);
+  log(`<span class="info">  Plan: ${planName}</span>`);
+  log(`<span class="info">========================================</span>`);
+
+  // Step 1: Verify OLT
+  updateStatus(0);
+  await delay(600);
+  log(`\n<span class="prompt">api$</span> <span class="cmd">GET /api/v1/olts/${olt.id}</span>`);
+  await delay(400);
+  log(`<span class="response">  {"name": "${olt.name}", "model": "${olt.model}", "platform": "${olt.platform}",</span>`);
+  log(`<span class="response">   "location": "${olt.location}", "status": "active"}</span>`);
+  log(`<span class="success">  ✓ OLT verified and active</span>`);
+
+  // Step 2: Discover
+  updateStatus(1);
+  await delay(800);
+  log(`\n<span class="prompt">api$</span> <span class="cmd">GET /api/v1/olts/${olt.id}/onus/unregistered?frame=${frame}&slot=${slot}&port=${port}</span>`);
+  await delay(500);
+  log(`<span class="ssh">  [SSH] show gpon onu uncfg ${ifOlt}</span>`);
+  await delay(1000);
+  log(`<span class="response">  Found 1 unregistered ONU:</span>`);
+  log(`<span class="response">    SN: ${serial}  Port: ${frame}/${slot}/${port}</span>`);
+  log(`<span class="success">  ✓ ONU ${serial} discovered</span>`);
+
+  // Step 3: Authorize
+  updateStatus(2);
+  await delay(600);
+  log(`\n<span class="prompt">api$</span> <span class="cmd">POST /api/v1/olts/${olt.id}/onus</span>`);
+  log(`<span class="dim">  {"serial_number": "${serial}", "customer_id": "${custId}",</span>`);
+  log(`<span class="dim">   "customer_name": "${name}", "onu_type": "${onuType}", ...}</span>`);
+  await delay(500);
+  log(`\n<span class="ssh">  [SSH → ${olt.name}]</span>`);
+  log(`<span class="ssh">  configure terminal</span>`);
+  log(`<span class="ssh">  interface ${ifOlt}</span>`);
+  log(`<span class="ssh">    onu 1 type ${onuType} sn ${serial}</span>`);
+  log(`<span class="ssh">    onu 1 description ${name}</span>`);
+  log(`<span class="ssh">  exit</span>`);
+  await delay(800);
+  log(`<span class="success">  ✓ ONU authorized on ${olt.model}</span>`);
+
+  // Step 4: ACS
+  updateStatus(3);
+  await delay(400);
+  log(`\n<span class="ssh">  [SSH → Configure TR-069 ACS]</span>`);
+  log(`<span class="ssh">  interface ${ifOnu}</span>`);
+  log(`<span class="ssh">    wan-ip 1 mode tr069 vlan-id 0 host 1</span>`);
+  log(`<span class="ssh">    tr069-serv-url http://197.232.61.253:7547</span>`);
+  log(`<span class="ssh">    tr069-username ACS</span>`);
+  log(`<span class="ssh">    tr069-password jtl@acs</span>`);
+  await delay(600);
+  log(`<span class="success">  ✓ ACS configured</span>`);
+
+  // Step 5: WiFi
+  updateStatus(4);
+  await delay(400);
+  log(`\n<span class="ssh">  [SSH → Configure WiFi]</span>`);
+  log(`<span class="ssh">    wifi ssid 1 name ${ssid2g}</span>`);
+  log(`<span class="ssh">    wifi ssid 1 auth-mode wpa2-psk</span>`);
+  log(`<span class="ssh">    wifi ssid 1 wpa-key ${wifiPass}</span>`);
+  log(`<span class="ssh">    wifi ssid 1 enable true</span>`);
+  log(`<span class="ssh">    wifi ssid 5 name ${ssid5g}</span>`);
+  log(`<span class="ssh">    wifi ssid 5 auth-mode wpa2-psk</span>`);
+  log(`<span class="ssh">    wifi ssid 5 wpa-key ${wifiPass}</span>`);
+  log(`<span class="ssh">    wifi ssid 5 enable true</span>`);
+  log(`<span class="ssh">  exit</span>`);
+  await delay(600);
+  log(`<span class="success">  ✓ WiFi configured: ${ssid2g} / ${ssid5g}</span>`);
+
+  document.getElementById('wifiCard').style.display = 'block';
+  document.getElementById('wifiSsid2g').textContent = ssid2g;
+  document.getElementById('wifiSsid5g').textContent = ssid5g;
+  document.getElementById('wifiPass').textContent = wifiPass;
+
+  // Step 6: Service
+  updateStatus(5);
+  await delay(400);
+  log(`\n<span class="ssh">  [SSH → Apply Service Profile]</span>`);
+  log(`<span class="ssh">  interface ${ifOnu}</span>`);
+  log(`<span class="ssh">    tcont 1 profile ${plan.value}</span>`);
+  log(`<span class="ssh">    gemport 1 tcont 1</span>`);
+  log(`<span class="ssh">  exit</span>`);
+  if (isZXAN) {
+    log(`<span class="ssh">  service-port auto vport-mode ${ifOnu} vlan 100 user-vlan 100 gemport 1</span>`);
+  } else {
+    log(`<span class="ssh">  service-port auto gpon ${frame}/${slot}/${port} onu 1 gemport 1 match vlan 100 action vlan 100</span>`);
+  }
+  await delay(600);
+  log(`<span class="success">  ✓ ${planName} applied (VLAN 100)</span>`);
+
+  // Step 7: DB
+  updateStatus(6);
+  await delay(400);
+  log(`\n<span class="response">  [DB] INSERT INTO onus (serial_number, customer_id, ...)</span>`);
+  log(`<span class="response">  [DB] INSERT INTO onu_services (service_profile_id=${plan.value}, vlan_id=1)</span>`);
+  await delay(300);
+  log(`<span class="success">  ✓ Saved to database</span>`);
+
+  // Step 8: Notifications
+  updateStatus(7);
+  await delay(400);
+  log(`\n<span class="info">  [EMAIL] → ${email}</span>`);
+  log(`<span class="info">    Subject: Your JTL Internet - WiFi Credentials</span>`);
+  log(`<span class="info">    Body: 2.4GHz: ${ssid2g} / 5GHz: ${ssid5g} / Pass: ${wifiPass}</span>`);
+  await delay(400);
+  log(`<span class="info">  [SMS] → ${phone}</span>`);
+  log(`<span class="info">    JTL Internet WiFi: ${ssid2g} / ${ssid5g} / ${wifiPass}</span>`);
+  await delay(300);
+  log(`<span class="success">  ✓ Notifications sent</span>`);
+
+  document.getElementById('smsCard').style.display = 'block';
+  document.getElementById('smsTo').textContent = phone;
+  document.getElementById('smsBody').innerHTML =
+    `JTL Internet - WiFi Credentials\n2.4GHz: ${ssid2g}\n5GHz: ${ssid5g}\nPassword: ${wifiPass}\nWelcome to JTL!`;
+
+  // Done
+  await delay(300);
+  log(`\n<span class="success">========================================</span>`);
+  log(`<span class="success">  PROVISIONING COMPLETE</span>`);
+  log(`<span class="success">  Customer: ${name} (${custId})</span>`);
+  log(`<span class="success">  ONU: ${serial} on ${frame}/${slot}/${port}:1</span>`);
+  log(`<span class="success">  WiFi: ${ssid2g} / ${ssid5g}</span>`);
+  log(`<span class="success">  Service: ${planName}</span>`);
+  log(`<span class="success">========================================</span>`);
+
+  updateStatus(8);
+  currentOnu = { id: 1, oltId: olt.id, serial, custId, name };
+  document.getElementById('btnSuspend').disabled = false;
+  document.getElementById('btnEnable').disabled = false;
+  document.getElementById('btnRemove').disabled = false;
+}
+
+async function suspendCustomer() {
+  if (!currentOnu) return;
+  log(`\n<span class="prompt">api$</span> <span class="cmd">POST /api/v1/olts/${currentOnu.oltId}/onus/${currentOnu.id}/suspend</span>`);
+  await delay(500);
+  log(`<span class="ssh">  [SSH] onu ${currentOnu.id} disable</span>`);
+  await delay(400);
+  log(`<span class="info">  {"message": "ONU suspended", "previous_state": "enabled", "new_state": "suspended"}</span>`);
+  log(`<span class="success">  ✓ ${currentOnu.name} suspended</span>`);
+}
+
+async function enableCustomer() {
+  if (!currentOnu) return;
+  log(`\n<span class="prompt">api$</span> <span class="cmd">POST /api/v1/olts/${currentOnu.oltId}/onus/${currentOnu.id}/enable</span>`);
+  await delay(500);
+  log(`<span class="ssh">  [SSH] onu ${currentOnu.id} enable</span>`);
+  await delay(400);
+  log(`<span class="info">  {"message": "ONU enabled", "previous_state": "suspended", "new_state": "enabled"}</span>`);
+  log(`<span class="success">  ✓ ${currentOnu.name} re-enabled</span>`);
+}
+
+async function removeCustomer() {
+  if (!currentOnu) return;
+  log(`\n<span class="prompt">api$</span> <span class="cmd">DELETE /api/v1/olts/${currentOnu.oltId}/onus/${currentOnu.id}</span>`);
+  await delay(400);
+  log(`<span class="ssh">  [SSH] no service-port ...</span>`);
+  log(`<span class="ssh">  [SSH] no onu ${currentOnu.id}</span>`);
+  await delay(400);
+  log(`<span class="response">  [DB] DELETE FROM onu_services WHERE onu_id=${currentOnu.id}</span>`);
+  log(`<span class="response">  [DB] DELETE FROM onus WHERE id=${currentOnu.id}</span>`);
+  await delay(300);
+  log(`<span class="error">  ✓ ${currentOnu.name} (${currentOnu.serial}) removed from ${getOltInfo().name}</span>`);
+  currentOnu = null;
+  document.getElementById('btnProvision').disabled = false;
+  document.getElementById('btnSuspend').disabled = true;
+  document.getElementById('btnEnable').disabled = true;
+  document.getElementById('btnRemove').disabled = true;
+  document.getElementById('wifiCard').style.display = 'none';
+  document.getElementById('smsCard').style.display = 'none';
+}
+</script>
+
+</body>
+</html>

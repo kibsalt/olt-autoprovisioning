@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JTL BSS — ONU Provisioning Portal</title>
+<style>
+  :root {
+    --bg:           #060d06;
+    --surface:      #0d180d;
+    --surface2:     #152015;
+    --border:       #1e321e;
+    --accent:       #00a651;
+    --accent-hover: #00bf5f;
+    --danger:       #e05252;
+    --warning:      #d4a017;
+    --info:         #2090d0;
+    --text:         #dff0df;
+    --text-muted:   #7aaa7a;
+    --text-dim:     #3a583a;
+    --green:        #00a651;
+    --orange:       #f08c3e;
+    --blue:         #4db8d4;
+    --purple:       #a78bfa;
+    --red:          #f47c72;
+    --yellow:       #d4b84a;
+    --radius:       8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-logo { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; }
+  .topbar-logo span { color: var(--green); }
+  .topbar-sep { color: var(--border); font-size: 20px; }
+  .topbar-title { color: var(--text-muted); font-size: 13px; }
+  .topbar-status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.error  { background: var(--red); }
+
+  /* LAYOUT */
+  .layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    min-height: calc(100vh - 56px);
+  }
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 18px;
+    overflow-y: auto;
+  }
+  .main { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* SECTION HEADERS */
+  .section-label {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+
+  /* FORM */
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .form-group label .req { color: var(--red); margin-left: 2px; }
+  input, select, textarea {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    padding: 7px 11px; font-size: 13px; font-family: inherit;
+    width: 100%; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,166,81,.15); }
+  input::placeholder { color: var(--text-dim); }
+  select option { background: var(--surface2); }
+  input.valid { border-color: var(--green); }
+  input.error { border-color: var(--red); }
+  .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .input-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .field-hint { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* BUTTONS */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 7px 14px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer; border: 1px solid transparent;
+    transition: all .15s; white-space: nowrap;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary   { background: var(--accent); color: #fff; }
+  .btn-primary:not(:disabled):hover   { background: var(--accent-hover); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .btn-secondary:not(:disabled):hover { background: var(--border); }
+  .btn-danger    { background: var(--danger); color: #fff; }
+  .btn-danger:not(:disabled):hover    { filter: brightness(1.15); }
+  .btn-ghost     { background: transparent; color: var(--accent); border-color: var(--border); }
+  .btn-ghost:not(:disabled):hover     { background: rgba(0,166,81,.1); }
+  .btn-warn      { background: transparent; color: var(--yellow); border-color: rgba(210,153,34,.4); }
+  .btn-warn:not(:disabled):hover      { background: rgba(210,153,34,.1); }
+  .btn-full { width: 100%; }
+  .btn-lg { padding: 10px 20px; font-size: 14px; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+  }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .card-title { font-size: 13px; font-weight: 600; }
+
+  /* BADGES */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 12px;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .badge-green  { background: rgba(63,185,80,.15);  color: var(--green); }
+  .badge-blue   { background: rgba(88,166,255,.15); color: var(--blue); }
+  .badge-orange { background: rgba(240,136,62,.15); color: var(--orange); }
+  .badge-red    { background: rgba(255,123,114,.15);color: var(--red); }
+  .badge-muted  { background: rgba(139,148,158,.12);color: var(--text-muted); }
+
+  /* OLT CARDS */
+  .olt-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .olt-card:hover { border-color: var(--accent); background: rgba(0,166,81,.05); }
+  .olt-card.selected { border-color: var(--green); background: rgba(63,185,80,.06); }
+  .olt-icon { width: 32px; height: 32px; background: var(--surface2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+  .olt-info { flex: 1; min-width: 0; }
+  .olt-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .olt-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  /* DISCOVERED ONUs */
+  .onu-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 12px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; transition: border-color .15s;
+  }
+  .onu-item:hover { border-color: var(--accent); }
+  .onu-sn { font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700; color: var(--yellow); flex: 1; }
+  .onu-loc { font-size: 11px; color: var(--text-muted); }
+
+  /* CONSOLE */
+  .console {
+    background: #0a0e13; border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: 'Courier New', Courier, monospace; font-size: 12px;
+    min-height: 180px; max-height: 350px;
+    overflow-y: auto; padding: 12px; line-height: 1.6;
+  }
+  .console-line { display: flex; gap: 10px; padding: 1px 0; }
+  .console-ts { color: #3a4550; flex-shrink: 0; }
+  .console-tag {
+    flex-shrink: 0; padding: 0 5px; border-radius: 3px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    line-height: 18px; height: 18px;
+    display: inline-flex; align-items: center;
+  }
+  .tag-info { background: rgba(31,111,235,.25);  color: #58a6ff; }
+  .tag-ok   { background: rgba(63,185,80,.25);   color: #3fb950; }
+  .tag-err  { background: rgba(218,54,51,.25);   color: #ff7b72; }
+  .tag-warn { background: rgba(210,153,34,.25);  color: #e3b341; }
+  .tag-cmd  { background: rgba(188,140,255,.25); color: #bc8cff; }
+  .console-msg { color: #cdd9e5; flex: 1; word-break: break-word; }
+  .console-empty { color: var(--text-dim); text-align: center; padding: 40px 0; }
+
+  /* STEPS */
+  .steps { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+  .step { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px; font-size: 12px; }
+  .step-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+  .step.pending .step-icon { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+  .step.running .step-icon { background: rgba(0,166,81,.2); color: var(--accent); border: 1px solid var(--accent); animation: pulse 1s infinite; }
+  .step.done    .step-icon { background: rgba(63,185,80,.2);  color: var(--green); border: 1px solid var(--green); }
+  .step.skip    .step-icon { background: rgba(139,148,158,.1); color: var(--text-dim); border: 1px solid var(--border); }
+  .step.error   .step-icon { background: rgba(218,54,51,.2);  color: var(--red);   border: 1px solid var(--red); }
+  .step-name { flex: 1; color: var(--text-muted); }
+  .step.running .step-name { color: var(--text); }
+  .step.done    .step-name { color: var(--green); }
+  .step.skip    .step-name { color: var(--text-dim); text-decoration: line-through; }
+  .step.error   .step-name { color: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* RESULT */
+  .result-panel { display: none; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .result-panel.show { display: block; }
+  .result-header { padding: 11px 14px; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; }
+  .result-header.success { background: rgba(63,185,80,.12); border-bottom: 1px solid rgba(63,185,80,.2); color: var(--green); }
+  .result-header.failure { background: rgba(218,54,51,.12); border-bottom: 1px solid rgba(218,54,51,.2); color: var(--red); }
+  .result-body { background: var(--surface2); padding: 14px; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .result-item .ri-label { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; text-transform: uppercase; letter-spacing: .5px; }
+  .result-item .ri-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .ri-value.mono { font-family: 'Courier New', monospace; color: var(--yellow); }
+
+  /* TABS */
+  .tab-bar { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .tab { padding: 8px 16px; font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-muted); transition: color .15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* ALERTS */
+  .alert { padding: 9px 12px; border-radius: 6px; font-size: 12px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5; }
+  .alert-info { background: rgba(31,111,235,.1); border: 1px solid rgba(31,111,235,.25); color: #7cb8ff; }
+  .alert-warn { background: rgba(210,153,34,.1); border: 1px solid rgba(210,153,34,.25); color: var(--yellow); }
+  .alert-ok   { background: rgba(63,185,80,.1);  border: 1px solid rgba(63,185,80,.25);  color: var(--green); }
+
+  /* WIFI CARD */
+  .wifi-card {
+    background: linear-gradient(135deg, #0d2137 0%, #0a1628 100%);
+    border: 1px solid #1a3a5c; border-radius: var(--radius);
+    padding: 16px; position: relative; overflow: hidden;
+  }
+  .wifi-label { font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: #4d8ab5; margin-bottom: 3px; }
+  .wifi-value { font-family: 'Courier New', monospace; font-size: 13px; color: #7dd3fc; font-weight: 600; margin-bottom: 10px; }
+  .wifi-pass-row { display: flex; align-items: center; gap: 8px; }
+  .wifi-pass { font-family: 'Courier New', monospace; font-size: 15px; color: #38bdf8; font-weight: 700; letter-spacing: 2px; flex: 1; }
+  .copy-btn { background: rgba(56,189,248,.1); border: 1px solid rgba(56,189,248,.3); border-radius: 4px; color: #38bdf8; padding: 3px 8px; cursor: pointer; font-size: 11px; transition: background .15s; }
+  .copy-btn:hover { background: rgba(56,189,248,.2); }
+
+  /* MISC */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+  .hidden { display: none !important; }
+  .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .6s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; width: 400px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-title { font-size: 14px; font-weight: 600; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">JTL<span>.</span>BSS</div>
+  <div class="topbar-sep">/</div>
+  <div class="topbar-title">ONU Provisioning Portal</div>
+  <div class="topbar-status">
+    <div class="status-dot" id="apiDot"></div>
+    <span id="apiStatus">Connecting…</span>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- API Config -->
+    <div>
+      <div class="section-label">API Configuration</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="form-group">
+          <label>API Base URL</label>
+          <input type="text" id="apiUrl" value="http://192.168.14.4:8000">
+        </div>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="apiKey" value="bss-prod-key-change-me">
+        </div>
+        <button class="btn btn-secondary btn-full" onclick="connectApi()">
+          <span id="connectIcon">🔌</span> Connect &amp; Load OLTs
+        </button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- OLT Selection -->
+    <div>
+      <div class="section-label">Select OLT</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input type="text" id="oltSearch" placeholder="Search IP, name, model…" oninput="filterOlts(this.value)" style="flex:1;font-size:12px;">
+        <button class="btn btn-ghost" onclick="filterOlts(document.getElementById('oltSearch').value)" style="padding:0 10px;font-size:12px;flex-shrink:0;">🔍</button>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <select id="oltList" onchange="selectOltFromDropdown(this)" style="width:100%;">
+          <option value="">— Connect to load OLTs —</option>
+        </select>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Add OLT -->
+    <div>
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Add OLT</span>
+        <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px;" onclick="toggleAddOlt()">＋</button>
+      </div>
+      <div id="addOltForm" class="hidden" style="flex-direction:column;gap:8px;margin-top:8px;">
+        <div class="input-2col">
+          <div class="form-group">
+            <label>Name <span class="req">*</span></label>
+            <input type="text" id="newOltName" placeholder="e.g. OLT-NBI-01">
+          </div>
+          <div class="form-group">
+            <label>IP Address <span class="req">*</span></label>
+            <input type="text" id="newOltHost" placeholder="192.168.x.x">
+          </div>
+        </div>
+        <div class="input-2col">
+          <div class="form-group">
+            <label>Model <span class="req">*</span></label>
+            <select id="newOltModel">
+              <option value="">Select model</option>
+              <option value="C300">C300</option>
+              <option value="C320">C320</option>
+              <option value="C600">C600</option>
+              <option value="C620">C620</option>
+              <option value="C650">C650</option>
+              <option value="HSGQ-2">HSGQ-2</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>SSH Port</label>
+            <input type="number" id="newOltPort" value="22" min="1" max="65535">
+          </div>
+        </div>
+        <div class="input-2col">
+          <div class="form-group">
+            <label>Username <span class="req">*</span></label>
+            <input type="text" id="newOltUser" placeholder="e.g. admin">
+          </div>
+          <div class="form-group">
+            <label>Password <span class="req">*</span></label>
+            <input type="password" id="newOltPass" placeholder="••••••••">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Enable Password</label>
+          <input type="password" id="newOltEnable" placeholder="Leave blank if not required">
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" id="newOltLocation" placeholder="e.g. Site-A Nairobi">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" id="newOltDesc" placeholder="e.g. Main aggregation OLT — Westlands">
+        </div>
+        <button class="btn btn-primary btn-full" id="addOltBtn" onclick="addOlt()">Add OLT</button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Port Scanner -->
+    <div>
+      <div class="section-label">Discover Unregistered ONUs</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="input-row">
+          <div class="form-group"><label>Frame</label><input type="number" id="scanFrame" value="1" min="0"></div>
+          <div class="form-group"><label>Slot</label><input type="number" id="scanSlot" value="7" min="0"></div>
+          <div class="form-group"><label>Port</label><input type="number" id="scanPort" value="2" min="0"></div>
+        </div>
+        <button class="btn btn-ghost btn-full" id="scanBtn" onclick="scanPort()" disabled>🔍 Scan Port</button>
+        <div id="discoveredList" style="display:flex;flex-direction:column;gap:5px;"></div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- OLT Info -->
+    <div id="oltStats" class="hidden">
+      <div class="section-label">OLT Info</div>
+      <div class="card" style="padding:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Model</div><div style="font-size:13px;font-weight:600;" id="infoModel">—</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Platform</div><div style="font-size:13px;font-weight:600;" id="infoPlatform">—</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Host</div><div style="font-size:12px;font-family:monospace;color:var(--yellow);" id="infoHost">—</div></div>
+          <div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Status</div><div id="infoStatus">—</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <div class="tab-bar">
+      <div class="tab active" onclick="showTab('provision', this)">Provision ONU</div>
+      <div class="tab" onclick="showTab('manage', this)">Manage ONUs</div>
+      <div class="tab" onclick="showTab('alarms', this)">Alarms &amp; Tickets <span id="alarmBadge" class="badge badge-red" style="display:none;margin-left:4px;"></span></div>
+    </div>
+
+    <!-- ===== TAB: PROVISION ===== -->
+    <div id="tab-provision">
+      <div style="display:grid;grid-template-columns:1fr 400px;gap:18px;align-items:start;">
+
+        <!-- LEFT: Form -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+          <!-- Customer Info -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">👤 Customer</div></div>
+            <div class="input-2col">
+              <div class="form-group">
+                <label>Customer ID <span class="req">*</span></label>
+                <input type="text" id="customerId" placeholder="e.g. JTL-2024-00123" oninput="validateField(this)">
+              </div>
+              <div class="form-group">
+                <label>Full Name <span class="req">*</span></label>
+                <input type="text" id="customerName" placeholder="e.g. John Kamau" oninput="updateWifiPreview(); validateField(this)">
+                <div class="field-hint">Used to generate default WiFi SSID prefix</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ONU Details -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">📡 ONU Details</div></div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="input-2col">
+                <div class="form-group">
+                  <label>Serial Number <span class="req">*</span></label>
+                  <input type="text" id="serialNumber" placeholder="e.g. ZTEGD139764E" maxlength="16"
+                         style="font-family:monospace;letter-spacing:1px;text-transform:uppercase"
+                         oninput="this.value=this.value.toUpperCase(); validateField(this)">
+                </div>
+                <div class="form-group">
+                  <label>ONU Type <span class="req">*</span></label>
+                  <select id="onuType">
+                    <option value="">Select type</option>
+                    <option value="ZTEG-F660">ZTEG-F660</option>
+                    <option value="ZTE-F660">ZTE-F660</option>
+                    <option value="ZTE-F609">ZTE-F609</option>
+                    <option value="F609">F609</option>
+                    <option value="FTTM-F839">FTTM-F839</option>
+                    <option value="Others">Others</option>
+                    <option value="ZTE--F821">ZTE--F821</option>
+                  </select>
+                </div>
+              </div>
+              <div class="input-row">
+                <div class="form-group"><label>Frame <span class="req">*</span></label><input type="number" id="frame" value="1" min="0"></div>
+                <div class="form-group"><label>Slot <span class="req">*</span></label><input type="number" id="slot" value="7" min="0"></div>
+                <div class="form-group"><label>Port <span class="req">*</span></label><input type="number" id="port" value="2" min="0"></div>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="description" placeholder="e.g. Residential — Nairobi CBD">
+              </div>
+            </div>
+          </div>
+
+          <!-- Service Config -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">⚙️ Service</div></div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="alert alert-info">ℹ️ VLAN &amp; bandwidth are provisioned directly on the OLT. PPPoE credentials are pushed to the ONU via ACS — not stored on this server.</div>
+              <div class="input-2col">
+                <div class="form-group">
+                  <label>VLAN <span class="req">*</span></label>
+                  <input type="number" id="vlan" value="2918" min="1" max="4094">
+                </div>
+                <div class="form-group">
+                  <label>Service ID</label>
+                  <input type="text" id="serviceId" placeholder="e.g. 001">
+                </div>
+              </div>
+              <div class="input-2col">
+                <div class="form-group">
+                  <label>PPPoE Username</label>
+                  <input type="text" id="pppoeUser" placeholder="e.g. johndoe" autocomplete="off">
+                </div>
+                <div class="form-group">
+                  <label>PPPoE Password</label>
+                  <input type="password" id="pppoePass" placeholder="••••••••" autocomplete="new-password">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WiFi -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">📶 WiFi (pushed via ACS)</div>
+              <button class="btn btn-secondary" style="padding:3px 10px;font-size:11px;" onclick="autoGenWifi()">Auto-generate</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <div class="input-2col">
+                <div class="form-group">
+                  <label>2.4 GHz SSID</label>
+                  <input type="text" id="wifi2g" placeholder="e.g. JohnKamau_2.4G" oninput="syncWifiPreview()">
+                </div>
+                <div class="form-group">
+                  <label>5 GHz SSID</label>
+                  <input type="text" id="wifi5g" placeholder="e.g. JohnKamau_5G" oninput="syncWifiPreview()">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>WiFi Password</label>
+                <input type="text" id="wifiPassInput" placeholder="Leave blank to auto-generate" oninput="syncWifiPreview()">
+              </div>
+              <div class="field-hint">If left blank, SSIDs and password are auto-generated from the customer name</div>
+            </div>
+          </div>
+
+          <!-- ACS -->
+          <div class="card">
+            <div class="card-header"><div class="card-title">🌐 ACS / TR-069</div></div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div class="form-group">
+                <label>ACS URL</label>
+                <input type="text" id="acsUrl" value="http://197.232.61.253:7547">
+              </div>
+              <div class="input-2col">
+                <div class="form-group"><label>ACS Username</label><input type="text" id="acsUser" value="ACS"></div>
+                <div class="form-group"><label>ACS Password</label><input type="password" id="acsPass" value="jtl@acs"></div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-full btn-lg" id="provisionBtn" onclick="provision()" disabled>
+            🚀 Provision ONU
+          </button>
+
+        </div><!-- /left -->
+
+        <!-- RIGHT: Status -->
+        <div style="display:flex;flex-direction:column;gap:14px;position:sticky;top:76px;">
+
+          <!-- WiFi Preview -->
+          <div>
+            <div class="section-label">WiFi Preview</div>
+            <div class="wifi-card">
+              <div class="wifi-label">2.4 GHz SSID</div>
+              <div class="wifi-value" id="prev2g">—_2.4G</div>
+              <div class="wifi-label">5 GHz SSID</div>
+              <div class="wifi-value" id="prev5g">—_5G</div>
+              <div class="wifi-label">Password</div>
+              <div class="wifi-pass-row">
+                <div class="wifi-pass" id="prevPass">—</div>
+                <button class="copy-btn" onclick="copyWifi()" id="copyWifiBtn" disabled>Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Provisioning Steps -->
+          <div>
+            <div class="section-label">Provisioning Steps</div>
+            <div class="card">
+              <div class="steps" id="stepsContainer">
+                <div class="step pending" id="s1"><div class="step-icon">1</div><div class="step-name">Connect to OLT via SSH</div></div>
+                <div class="step pending" id="s2"><div class="step-icon">2</div><div class="step-name">Authorize ONU</div></div>
+                <div class="step pending" id="s3"><div class="step-icon">3</div><div class="step-name">Configure T-CONT &amp; GEM Port</div></div>
+                <div class="step pending" id="s4"><div class="step-icon">4</div><div class="step-name">Create Service Port (VLAN)</div></div>
+                <div class="step pending" id="s5"><div class="step-icon">5</div><div class="step-name">Push PPPoE via OLT</div></div>
+                <div class="step pending" id="s6"><div class="step-icon">6</div><div class="step-name">Push ACS / TR-069 endpoint</div></div>
+                <div class="step pending" id="s7"><div class="step-icon">7</div><div class="step-name">WiFi via ACS</div></div>
+                <div class="step pending" id="s8"><div class="step-icon">8</div><div class="step-name">Save to database</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Console -->
+          <div>
+            <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Live Console</span>
+              <span style="cursor:pointer;font-size:11px;color:var(--text-muted);" onclick="clearConsole()">Clear</span>
+            </div>
+            <div class="console" id="console">
+              <div class="console-empty">Console output will appear here…</div>
+            </div>
+          </div>
+
+        </div><!-- /right -->
+      </div><!-- /grid -->
+
+      <!-- Result Panel -->
+      <div class="result-panel" id="resultPanel" style="margin-top:16px;">
+        <div class="result-header" id="resultHeader"></div>
+        <div class="result-body" id="resultBody"></div>
+      </div>
+
+    </div><!-- /tab-provision -->
+
+    <!-- ===== TAB: MANAGE ===== -->
+    <div id="tab-manage" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="section-label" style="margin:0;">Provisioned ONUs</div>
+        <button class="btn btn-secondary" onclick="loadOnus()">↻ Refresh</button>
+      </div>
+      <div id="onuTable">
+        <div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">
+          Select an OLT and switch to this tab
+        </div>
+      </div>
+
+      <!-- ONU Detail Panel (shown when a row is clicked) -->
+      <div id="onuDetailPanel" class="hidden" style="margin-top:12px;">
+        <div class="card" style="padding:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div class="section-label" style="margin:0;">ONU Details — <span id="odSerial" style="color:var(--yellow);font-family:monospace;"></span> <span id="odPath" style="font-size:11px;color:var(--accent);font-family:monospace;margin-left:8px;"></span></div>
+            <span style="cursor:pointer;font-size:18px;color:var(--text-muted);line-height:1;" onclick="document.getElementById('onuDetailPanel').classList.add('hidden');selectedOnuRow&&(selectedOnuRow.style.background='');">&times;</span>
+          </div>
+          <!-- Loading indicator -->
+          <div id="odLoading" style="text-align:center;padding:20px;"><span class="spinner"></span> Loading ONU details from OLT...</div>
+          <!-- Content (hidden until loaded) -->
+          <div id="odContent" class="hidden">
+            <!-- Row 1: Status + Optical + WAN -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+              <!-- ONU Status -->
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">ONU Status</div>
+                <div id="odStatusContent">—</div>
+              </div>
+              <!-- Optical -->
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Optical</div>
+                <div id="odOpticalContent">—</div>
+              </div>
+              <!-- WAN / Internet -->
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">WAN / Internet</div>
+                <div id="odWanContent">—</div>
+              </div>
+            </div>
+            <!-- Row 2: PPPoE + WiFi + Customer -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;padding-top:12px;border-top:1px solid var(--border);">
+              <!-- PPPoE (from OLT) -->
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">PPPoE <span style="font-size:9px;color:var(--accent);">(from OLT)</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">Username:</span> <span id="odPppUser" style="font-family:monospace;color:var(--accent);">—</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">Password:</span> <span id="odPppPass" style="font-family:monospace;color:var(--accent);">—</span></div>
+              </div>
+              <!-- WiFi -->
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">WiFi Credentials</div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">2.4G SSID:</span> <span id="odWifi2g" style="font-family:monospace;color:var(--green);">—</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">5G SSID:</span> <span id="odWifi5g" style="font-family:monospace;color:var(--green);">—</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">Password:</span> <span id="odWifiPass" style="font-family:monospace;color:var(--green);">—</span></div>
+              </div>
+              <!-- Customer -->
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Customer</div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">Name:</span> <span id="odCustName">—</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">ID:</span> <span id="odCustId">—</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">Phone:</span> <span id="odCustPhone">—</span></div>
+                <div style="font-size:13px;"><span style="color:var(--text-muted);">Email:</span> <span id="odCustEmail">—</span></div>
+              </div>
+            </div>
+            <!-- Row 3: Interface config + pon-onu-mng config -->
+            <div style="padding-top:12px;border-top:1px solid var(--border);">
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">OLT Running Config</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">interface config</div>
+                  <pre id="odInterfaceConfig" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:11px;margin:0;max-height:220px;overflow:auto;color:var(--green);white-space:pre-wrap;"></pre>
+                </div>
+                <div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">pon-onu-mng config</div>
+                  <pre id="odPonOnuMngConfig" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:10px;font-size:11px;margin:0;max-height:220px;overflow:auto;color:var(--yellow);white-space:pre-wrap;"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unregistered ONUs -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px;">
+        <div class="section-label" style="margin:0;">Unregistered ONUs <span id="unregCount" style="font-size:11px;color:var(--text-muted);font-weight:400;"></span></div>
+        <button class="btn btn-ghost" id="scanAllBtn" onclick="scanAllKnownPorts()" disabled>🔍 Scan Known Ports</button>
+      </div>
+      <div id="unregisteredTable">
+        <div class="card" style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">
+          Click "Scan Known Ports" to discover ONUs that are on the OLT but not yet provisioned
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB: ALARMS ===== -->
+    <div id="tab-alarms" class="hidden">
+
+      <!-- Summary stats -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="card" style="flex:1;min-width:100px;padding:14px 18px;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Active Alarms</div>
+          <div id="statActiveAlarms" style="font-size:26px;font-weight:700;color:var(--red);">—</div>
+        </div>
+        <div class="card" style="flex:1;min-width:100px;padding:14px 18px;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">LOS</div>
+          <div id="statLos" style="font-size:26px;font-weight:700;color:var(--red);">—</div>
+        </div>
+        <div class="card" style="flex:1;min-width:100px;padding:14px 18px;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Low Rx</div>
+          <div id="statLowRx" style="font-size:26px;font-weight:700;color:var(--orange);">—</div>
+        </div>
+        <div class="card" style="flex:1;min-width:100px;padding:14px 18px;">
+          <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Open Tickets</div>
+          <div id="statOpenTickets" style="font-size:26px;font-weight:700;color:var(--yellow);">—</div>
+        </div>
+      </div>
+
+      <!-- Sub-tabs -->
+      <div class="tab-bar" style="margin-bottom:14px;" id="alarmSubBar">
+        <div class="tab active" onclick="showAlarmSub('active-alarms', this)">Active Alarms</div>
+        <div class="tab" onclick="showAlarmSub('tickets', this)">Tickets</div>
+        <div class="tab" onclick="showAlarmSub('technicians', this)">Technicians</div>
+      </div>
+
+      <!-- Active Alarms -->
+      <div id="alarm-sub-active-alarms">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div style="font-size:12px;color:var(--text-muted);">Auto-refreshes every 60s</div>
+          <button class="btn btn-secondary" onclick="loadAlarms()">↻ Refresh</button>
+        </div>
+        <div id="alarmsTable"><div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">Loading…</div></div>
+      </div>
+
+      <!-- Tickets -->
+      <div id="alarm-sub-tickets" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <select id="ticketStatusFilter" onchange="loadTickets()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:var(--radius);font-size:12px;">
+            <option value="">All Tickets</option>
+            <option value="open">Open</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="resolved">Resolved</option>
+          </select>
+          <button class="btn btn-secondary" onclick="loadTickets()">↻ Refresh</button>
+        </div>
+        <div id="ticketsTable"><div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">Loading…</div></div>
+      </div>
+
+      <!-- Technicians -->
+      <div id="alarm-sub-technicians" class="hidden">
+        <div class="card" style="padding:16px;margin-bottom:14px;">
+          <div class="section-label" style="margin-bottom:12px;">Add Technician</div>
+          <div class="input-row">
+            <div class="form-group"><label>Name *</label><input type="text" id="techName" placeholder="John Kamau"></div>
+            <div class="form-group"><label>Phone</label><input type="text" id="techPhone" placeholder="+254712345678"></div>
+            <div class="form-group"><label>Email</label><input type="text" id="techEmail" placeholder="j.kamau@jtl.co.ke"></div>
+            <div class="form-group"><label>Zone / Area</label><input type="text" id="techZone" placeholder="Westlands"></div>
+          </div>
+          <button class="btn btn-primary" onclick="addTechnician()" style="margin-top:4px;">+ Add Technician</button>
+        </div>
+        <div id="techTable"><div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">Loading…</div></div>
+      </div>
+
+    </div><!-- /tab-alarms -->
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- Assign Ticket Modal -->
+<div class="modal-overlay hidden" id="assignModal">
+  <div class="modal">
+    <div class="modal-title">Assign Ticket</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="assignModalTitle"></div>
+    <div class="form-group">
+      <label>Technician</label>
+      <select id="assignTechSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:var(--radius);font-size:13px;"></select>
+    </div>
+    <div class="form-group"><label>Note (optional)</label><input type="text" id="assignNote"></div>
+    <div id="assignModalMsg" style="font-size:12px;display:none;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('assignModal')">Cancel</button>
+      <button class="btn btn-primary" id="assignSubmitBtn" onclick="submitAssign()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- Resolve Ticket Modal -->
+<div class="modal-overlay hidden" id="resolveModal">
+  <div class="modal">
+    <div class="modal-title">Resolve Ticket</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="resolveModalTitle"></div>
+    <div class="form-group"><label>Resolution Notes *</label><input type="text" id="resolveNotes" placeholder="e.g. Replaced damaged splice at cabinet 3"></div>
+    <div id="resolveModalMsg" style="font-size:12px;display:none;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('resolveModal')">Cancel</button>
+      <button class="btn btn-primary" id="resolveSubmitBtn" onclick="submitResolve()">Mark Resolved</button>
+    </div>
+  </div>
+</div>
+
+<!-- PPPoE Modal -->
+<div class="modal-overlay hidden" id="pppoeModal">
+  <div class="modal">
+    <div class="modal-title">Update PPPoE & VLAN <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(via OLT)</span></div>
+    <div style="font-size:12px;color:var(--text-muted);" id="pppoeModalSn"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="form-group"><label>PPPoE Username</label><input type="text" id="mpUser" autocomplete="off"></div>
+      <div class="form-group"><label>PPPoE Password</label><input type="password" id="mpPass" autocomplete="new-password"></div>
+      <div class="form-group"><label>Service VLAN <span style="font-weight:400;color:var(--text-muted);">(leave empty to keep current)</span></label><input type="number" id="mpVlan" min="1" max="4094" placeholder="e.g. 2918"></div>
+    </div>
+    <div id="pppoeModalMsg" style="font-size:12px;display:none;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('pppoeModal')">Cancel</button>
+      <button class="btn btn-primary" id="pppoePushBtn" onclick="submitPppoe()">Push via OLT</button>
+    </div>
+  </div>
+</div>
+
+<!-- WiFi Modal -->
+<div class="modal-overlay hidden" id="wifiModal">
+  <div class="modal">
+    <div class="modal-title">Update WiFi Credentials <span style="font-size:11px;font-weight:400;color:var(--text-muted);">(via ACS)</span></div>
+    <div style="font-size:12px;color:var(--text-muted);" id="wifiModalSn"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="form-group"><label>2.4 GHz SSID</label><input type="text" id="mw2g"></div>
+      <div class="form-group"><label>5 GHz SSID</label><input type="text" id="mw5g"></div>
+
+      <div class="form-group"><label>Password</label><input type="text" id="mwPass"></div>
+    </div>
+    <div id="wifiModalMsg" style="font-size:12px;display:none;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('wifiModal')">Cancel</button>
+      <button class="btn btn-primary" id="wifiPushBtn" onclick="submitWifi()">Push to ONU</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──── STATE ────
+let selectedOlt = null;
+let consoleEmpty = true;
+let lastWifiCreds = null;
+let modalOnu = null;
+
+// ──── INIT ────
+window.onload = () => {
+  // If served directly from the API server (port 8000), default to same origin
+  if (window.location.port === '8000') {
+    document.getElementById('apiUrl').value = window.location.origin;
+  }
+  updateWifiPreview();
+  connectApi();
+};
+
+// ──── TABS ────
+function showTab(name, el) {
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  el.classList.add('active');
+  if (name === 'alarms') { loadAlarms(); loadTickets(); loadTechnicians(); }
+  if (name === 'manage') loadOnus();
+}
+
+// ──── API ────
+function getApiBase() { return document.getElementById('apiUrl').value.replace(/\/$/, ''); }
+function getApiKey()  { return document.getElementById('apiKey').value; }
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(getApiBase() + path, {
+    ...opts,
+    headers: { 'X-API-Key': getApiKey(), 'Content-Type': 'application/json', ...(opts.headers || {}) },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.detail || data?.error?.message || (typeof data?.error === 'string' ? data.error : null) || JSON.stringify(data));
+  return data;
+}
+
+async function connectApi() {
+  const dot = document.getElementById('apiDot');
+  const statusEl = document.getElementById('apiStatus');
+  dot.className = 'status-dot';
+  statusEl.textContent = 'Connecting…';
+  try {
+    await apiFetch('/health');
+    dot.className = 'status-dot online';
+    statusEl.textContent = 'API Online';
+    loadOlts();
+  } catch (e) {
+    dot.className = 'status-dot error';
+    statusEl.textContent = 'API Unreachable';
+    log('err', 'Cannot reach API: ' + e.message);
+  }
+}
+
+let _oltRegistry = {};
+
+function ipToNum(ip) {
+  return ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
+}
+
+async function loadOlts() {
+  const sel = document.getElementById('oltList');
+  sel.innerHTML = '<option value="">Loading…</option>';
+  sel.disabled = true;
+  try {
+    const data = await apiFetch('/api/v1/olts?page_size=50');
+    let olts = data?.data?.items || data?.data || [];
+    if (!olts.length) {
+      sel.innerHTML = '<option value="">No OLTs found</option>';
+      return;
+    }
+    // Sort by IP address numerically
+    olts = olts.slice().sort((a, b) => ipToNum(a.host) - ipToNum(b.host));
+    _oltRegistry = {};
+    sel.innerHTML = '';
+    olts.forEach(olt => {
+      _oltRegistry[olt.id] = olt;
+      const opt = document.createElement('option');
+      opt.value = olt.id;
+      opt.textContent = `${olt.host}  —  ${olt.name}  (${olt.model})`;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+    log('info', `Loaded ${olts.length} OLT(s)`);
+    // Auto-select the first OLT (lowest IP)
+    sel.selectedIndex = 0;
+    selectOltFromDropdown(sel);
+  } catch (e) {
+    sel.innerHTML = '<option value="">Failed to load</option>';
+    log('err', 'Failed to load OLTs: ' + e.message);
+  }
+}
+
+function toggleAddOlt() {
+  const form = document.getElementById('addOltForm');
+  const btn = form.previousElementSibling?.querySelector('button');
+  const opening = form.classList.contains('hidden');
+  form.classList.toggle('hidden');
+  form.style.display = opening ? 'flex' : '';
+  if (btn) btn.textContent = opening ? '✕' : '＋';
+}
+
+async function addOlt() {
+  const name     = document.getElementById('newOltName').value.trim();
+  const host     = document.getElementById('newOltHost').value.trim();
+  const model    = document.getElementById('newOltModel').value;
+  const port     = parseInt(document.getElementById('newOltPort').value) || 22;
+  const username = document.getElementById('newOltUser').value.trim();
+  const password = document.getElementById('newOltPass').value;
+  const enable      = document.getElementById('newOltEnable').value || null;
+  const location    = document.getElementById('newOltLocation').value.trim() || null;
+  const description = document.getElementById('newOltDesc').value.trim() || null;
+
+  if (!name || !host || !model || !username || !password) {
+    alert('Required: Name, IP Address, Model, Username, Password');
+    return;
+  }
+
+  const btn = document.getElementById('addOltBtn');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  try {
+    await apiFetch('/api/v1/olts', {
+      method: 'POST',
+      body: JSON.stringify({
+        name, host, model,
+        ssh_port: port,
+        ssh_username: username,
+        ssh_password: password,
+        enable_password: enable,
+        location,
+        description,
+      }),
+    });
+    log('ok', `OLT "${name}" (${host}) added successfully`);
+    // Clear form and reload OLT list
+    ['newOltName','newOltHost','newOltUser','newOltPass','newOltEnable','newOltLocation','newOltDesc'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('newOltModel').value = '';
+    document.getElementById('newOltPort').value = '22';
+    toggleAddOlt();
+    await loadOlts();
+  } catch (e) {
+    log('err', 'Failed to add OLT: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add OLT';
+  }
+}
+
+function filterOlts(query) {
+  const sel = document.getElementById('oltList');
+  const q = query.trim().toLowerCase();
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const allOlts = Object.values(_oltRegistry).sort((a, b) => ipToNum(a.host) - ipToNum(b.host));
+  const matches = q
+    ? allOlts.filter(o =>
+        o.host.includes(q) ||
+        o.name.toLowerCase().includes(q) ||
+        o.model.toLowerCase().includes(q)
+      )
+    : allOlts;
+  if (!matches.length) {
+    sel.innerHTML = '<option value="">No match</option>';
+    selectedOlt = null;
+    document.getElementById('oltStats').classList.add('hidden');
+    document.getElementById('scanBtn').disabled = true;
+    document.getElementById('provisionBtn').disabled = true;
+    return;
+  }
+  matches.forEach(olt => {
+    const opt = document.createElement('option');
+    opt.value = olt.id;
+    opt.textContent = `${olt.host}  —  ${olt.name}  (${olt.model})`;
+    sel.appendChild(opt);
+  });
+  // Restore previous selection if still in results, otherwise pick first
+  if (prev && matches.find(o => o.id == prev)) {
+    sel.value = prev;
+  } else {
+    sel.selectedIndex = 0;
+    selectOltFromDropdown(sel);
+  }
+}
+
+function selectOltFromDropdown(sel) {
+  const id = parseInt(sel.value);
+  if (!id) {
+    selectedOlt = null;
+    document.getElementById('oltStats').classList.add('hidden');
+    document.getElementById('scanBtn').disabled = true;
+    document.getElementById('provisionBtn').disabled = true;
+    return;
+  }
+  const olt = _oltRegistry[id];
+  if (!olt) return;
+  selectedOlt = olt;
+  document.getElementById('oltStats').classList.remove('hidden');
+  document.getElementById('infoModel').textContent    = olt.model;
+  document.getElementById('infoPlatform').textContent = olt.platform;
+  document.getElementById('infoHost').textContent     = olt.host;
+  document.getElementById('infoStatus').innerHTML     = `<span class="badge badge-green">${olt.status}</span>`;
+  document.getElementById('scanBtn').disabled     = false;
+  document.getElementById('provisionBtn').disabled = false;
+  const sab = document.getElementById('scanAllBtn');
+  if (sab) sab.disabled = false;
+  log('info', `Selected OLT: ${olt.name} (${olt.host})`);
+}
+
+// ──── SCAN ────
+async function scanPort() {
+  if (!selectedOlt) return;
+  const frame = document.getElementById('scanFrame').value;
+  const slot  = document.getElementById('scanSlot').value;
+  const port  = document.getElementById('scanPort').value;
+  const btn   = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Scanning…';
+  document.getElementById('discoveredList').innerHTML = '';
+  log('cmd', `Scanning gpon-olt_${frame}/${slot}/${port}…`);
+  try {
+    const data = await apiFetch(
+      `/api/v1/olts/${selectedOlt.id}/onus/unregistered?frame=${frame}&slot=${slot}&port=${port}`
+    );
+    const onus = data?.data || [];
+    if (!onus.length) {
+      document.getElementById('discoveredList').innerHTML =
+        '<div style="color:var(--text-muted);font-size:12px;text-align:center;padding:8px 0;">No unconfigured ONUs</div>';
+      log('warn', 'No unconfigured ONUs on this port');
+    } else {
+      onus.forEach(onu => {
+        const item = document.createElement('div');
+        item.className = 'onu-item';
+        item.innerHTML = `
+          <div><div class="onu-sn">${onu.serial_number}</div><div class="onu-loc">${onu.frame}/${onu.slot}/${onu.port}</div></div>
+          <span class="badge badge-orange">Uncfg</span>
+        `;
+        item.onclick = () => autofill(onu);
+        document.getElementById('discoveredList').appendChild(item);
+      });
+      log('ok', `Found ${onus.length} unconfigured ONU(s) — click to autofill`);
+    }
+  } catch (e) {
+    document.getElementById('discoveredList').innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
+    log('err', 'Scan failed: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🔍 Scan Port';
+}
+
+function autofill(onu) {
+  document.getElementById('serialNumber').value = onu.serial_number;
+  document.getElementById('frame').value = onu.frame;
+  document.getElementById('slot').value  = onu.slot;
+  document.getElementById('port').value  = onu.port;
+  if (onu.onu_type) document.getElementById('onuType').value = onu.onu_type;
+  document.getElementById('serialNumber').classList.add('valid');
+  log('info', `Autofilled: ${onu.serial_number} on ${onu.frame}/${onu.slot}/${onu.port}`);
+}
+
+// ──── WIFI PREVIEW ────
+function updateWifiPreview() {
+  const name  = document.getElementById('customerName').value.trim();
+  const first = name ? name.split(/\s+/)[0].replace(/[^a-zA-Z0-9_]/g,'') || 'Customer' : '—';
+  const ssid2g = document.getElementById('wifi2g').value.trim() || `${first}_2.4G`;
+  const ssid5g = document.getElementById('wifi5g').value.trim() || `${first}_5G`;
+  const pass   = document.getElementById('wifiPassInput').value.trim() || '(auto-generated)';
+  document.getElementById('prev2g').textContent = ssid2g;
+  document.getElementById('prev5g').textContent = ssid5g;
+  document.getElementById('prevPass').textContent = pass;
+  if (pass !== '(auto-generated)') {
+    lastWifiCreds = { ssid_2g: ssid2g, ssid_5g: ssid5g, password: pass };
+    document.getElementById('copyWifiBtn').disabled = false;
+  }
+}
+
+function syncWifiPreview() { updateWifiPreview(); }
+
+function autoGenWifi() {
+  const name  = document.getElementById('customerName').value.trim();
+  const first = name ? name.split(/\s+/)[0].replace(/[^a-zA-Z0-9_]/g,'') || 'Customer' : 'Customer';
+  document.getElementById('wifi2g').value = `${first}_2.4G`;
+  document.getElementById('wifi5g').value = `${first}_5G`;
+  document.getElementById('wifiPassInput').value = randPass();
+  updateWifiPreview();
+}
+
+function randPass(len = 10) {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from({length: len}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function copyWifi() {
+  if (!lastWifiCreds) return;
+  const txt = `2.4G: ${lastWifiCreds.ssid_2g}\n5G: ${lastWifiCreds.ssid_5g}\nPassword: ${lastWifiCreds.password}`;
+  navigator.clipboard.writeText(txt);
+  const btn = document.getElementById('copyWifiBtn');
+  btn.textContent = '✓ Copied';
+  setTimeout(() => btn.textContent = 'Copy', 2000);
+}
+
+function validateField(el) {
+  el.classList.remove('valid','error');
+  if (el.value.trim()) el.classList.add('valid');
+}
+
+// ──── PROVISION ────
+async function provision() {
+  if (!selectedOlt) { alert('Select an OLT first.'); return; }
+  const customerId   = document.getElementById('customerId').value.trim();
+  const customerName = document.getElementById('customerName').value.trim();
+  const serial       = document.getElementById('serialNumber').value.trim();
+  const onuType      = document.getElementById('onuType').value;
+  const frame        = parseInt(document.getElementById('frame').value);
+  const slot         = parseInt(document.getElementById('slot').value);
+  const port         = parseInt(document.getElementById('port').value);
+
+  if (!customerId || !customerName || !serial || !onuType) {
+    alert('Required: Customer ID, Name, Serial Number, ONU Type');
+    return;
+  }
+
+  const first  = customerName.split(/\s+/)[0].replace(/[^a-zA-Z0-9_]/g,'') || 'Customer';
+  const wifi2g = document.getElementById('wifi2g').value.trim() || `${first}_2.4G`;
+  const wifi5g = document.getElementById('wifi5g').value.trim() || `${first}_5G`;
+  const wifiPw = document.getElementById('wifiPassInput').value.trim() || null;
+
+  const vlan = parseInt(document.getElementById('vlan').value) || 2918;
+  const payload = {
+    serial_number:  serial,
+    customer_id:    customerId,
+    customer_name:  customerName,
+    frame, slot, port,
+    onu_type:    onuType,
+    description: document.getElementById('description').value || null,
+    service_vlan: vlan,
+    pppoe_username: document.getElementById('pppoeUser').value.trim() || null,
+    pppoe_password: document.getElementById('pppoePass').value || null,
+    wifi_ssid_2g: wifi2g,
+    wifi_ssid_5g: wifi5g,
+    wifi_password: wifiPw,
+    service_profile_ids: null,
+  };
+
+  const btn = document.getElementById('provisionBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Provisioning…';
+  document.getElementById('resultPanel').className = 'result-panel';
+  resetSteps();
+  clearConsole();
+
+  log('info', `Provisioning ${customerName} (${customerId})`);
+  log('cmd', `POST /api/v1/olts/${selectedOlt.id}/onus`);
+  log('info', `ONU: ${serial} | Type: ${onuType} | Port: ${frame}/${slot}/${port}`);
+  log('info', `VLAN: ${document.getElementById('vlan').value} | PPPoE: ${payload.pppoe_username || 'none'}`);
+  log('info', `WiFi: ${wifi2g} / ${wifi5g}`);
+
+  // Step 1: Connect to OLT via SSH (pre-establish connection)
+  setStep(1, 'running');
+  try {
+    await apiFetch(`/api/v1/olts/${selectedOlt.id}/health`);
+    setStep(1, 'done');
+    log('ok', `SSH connected to ${selectedOlt.host}`);
+  } catch (connErr) {
+    setStep(1, 'error');
+    log('err', 'Connect to OLT failed: ' + connErr.message);
+    showResult(false, null, null, connErr.message);
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Provision ONU';
+    return;
+  }
+
+  // Animate remaining steps (2-8) while provisioning request runs
+  const stepDelay = [0, 600, 1300, 2100, 2800, 3500, 4200];
+  stepDelay.forEach((d, i) => setTimeout(() => setStep(i + 2, 'running'), d));
+
+  try {
+    const data = await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const onu = data?.data || data;
+
+    // All steps done
+    for (let i = 1; i <= 8; i++) setTimeout(() => setStep(i, 'done'), i * 150);
+
+    lastWifiCreds = { ssid_2g: wifi2g, ssid_5g: wifi5g, password: wifiPw || '(server-generated)' };
+    document.getElementById('prev2g').textContent = wifi2g;
+    document.getElementById('prev5g').textContent = wifi5g;
+    document.getElementById('prevPass').textContent = wifiPw || '(server-generated)';
+    document.getElementById('copyWifiBtn').disabled = wifiPw ? false : true;
+
+    log('ok', `ONU provisioned! ID: ${onu?.id || '—'} | Port: ${onu?.frame}/${onu?.slot}/${onu?.port}:${onu?.onu_id}`);
+    log('ok', `WiFi pushed via ACS → ${wifi2g} / ${wifi5g}`);
+    if (payload.pppoe_username) log('ok', `PPPoE pushed via ACS → ${payload.pppoe_username}`);
+
+    showResult(true, onu, payload);
+  } catch (e) {
+    for (let i = 2; i <= 8; i++) {
+      const s = document.getElementById('s' + i);
+      if (s.classList.contains('running')) { setStep(i, 'error'); break; }
+    }
+    log('err', 'Provisioning failed: ' + e.message);
+    showResult(false, null, null, e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '🚀 Provision ONU';
+}
+
+function showResult(success, onu, payload, errMsg) {
+  const panel  = document.getElementById('resultPanel');
+  const header = document.getElementById('resultHeader');
+  const body   = document.getElementById('resultBody');
+  panel.className = 'result-panel show';
+  if (success) {
+    header.className = 'result-header success';
+    header.innerHTML = '✅ ONU Provisioned Successfully';
+    body.innerHTML = `
+      <div class="result-grid">
+        <div class="result-item"><div class="ri-label">ONU ID</div><div class="ri-value">${onu?.id || '—'}</div></div>
+        <div class="result-item"><div class="ri-label">Serial</div><div class="ri-value mono">${onu?.serial_number || '—'}</div></div>
+        <div class="result-item"><div class="ri-label">Port</div><div class="ri-value mono">${onu?.frame}/${onu?.slot}/${onu?.port}:${onu?.onu_id}</div></div>
+        <div class="result-item"><div class="ri-label">Admin State</div><div class="ri-value"><span class="badge badge-green">${onu?.admin_state || 'enabled'}</span></div></div>
+        <div class="result-item"><div class="ri-label">WiFi 2.4G</div><div class="ri-value mono">${payload?.wifi_ssid_2g || '—'}</div></div>
+        <div class="result-item"><div class="ri-label">WiFi 5G</div><div class="ri-value mono">${payload?.wifi_ssid_5g || '—'}</div></div>
+      </div>
+      <div style="margin-top:10px;" class="alert alert-ok">PPPoE &amp; WiFi credentials pushed to ONU via ACS. Check ACS logs to confirm delivery.</div>
+    `;
+  } else {
+    header.className = 'result-header failure';
+    header.innerHTML = '❌ Provisioning Failed';
+    body.innerHTML = `<div style="color:var(--red);font-size:13px;">${errMsg}</div>`;
+  }
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ──── MANAGE TAB ────
+async function loadOnus() {
+  document.getElementById('onuDetailPanel').classList.add('hidden');
+  selectedOnuRow = null;
+  if (!selectedOlt) {
+    document.getElementById('onuTable').innerHTML = `<div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">Select an OLT from the sidebar first</div>`;
+    return;
+  }
+  document.getElementById('onuTable').innerHTML = `<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>`;
+  try {
+    const data = await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus?page_size=100`);
+    const onus = data?.data?.items || data?.data || [];
+    if (!onus.length) {
+      document.getElementById('onuTable').innerHTML = `<div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">No ONUs provisioned on this OLT</div>`;
+      return;
+    }
+    const headers = ['ID', 'Serial', 'Customer', 'Port', 'VLAN', 'Type', 'Admin', 'Oper', 'Created', 'Actions'];
+    document.getElementById('onuTable').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+              ${headers.map(h => `<th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${h}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${onus.map(o => `
+              <tr style="border-bottom:1px solid var(--border);cursor:pointer;" onmouseover="if(!this.classList.contains('onu-selected'))this.style.background='var(--surface2)'" onmouseout="if(!this.classList.contains('onu-selected'))this.style.background=''" onclick="showOnuDetail(this,${JSON.stringify(o).replace(/"/g,'&quot;')})">
+                <td style="padding:9px 12px;font-size:12px;color:var(--text-muted);">${o.id}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;color:var(--yellow);">${o.serial_number}</td>
+                <td style="padding:9px 12px;font-size:12px;">${o.customer_id}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;color:var(--accent);">${o.frame}/${o.slot}/${o.port}:${o.onu_id}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;">${o.service_vlan || '—'}</td>
+                <td style="padding:9px 12px;font-size:12px;">${o.onu_type}</td>
+                <td style="padding:9px 12px;"><span class="badge ${o.admin_state === 'enabled' ? 'badge-green' : 'badge-muted'}">${o.admin_state}</span></td>
+                <td style="padding:9px 12px;"><span class="badge ${o.oper_state === 'online' ? 'badge-green' : 'badge-orange'}">${o.oper_state}</span></td>
+                <td style="padding:9px 12px;font-size:11px;color:var(--text-muted);">${o.created_at?.split('T')[0] || '—'}</td>
+                <td style="padding:9px 12px;">
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                    <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();showOnuDetail(this.closest('tr'),${JSON.stringify(o).replace(/"/g,'&quot;')});checkWanStatus(${selectedOlt.id},${o.id},'${o.serial_number}',this)">WAN</button>
+                    <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();showOnuDetail(this.closest('tr'),${JSON.stringify(o).replace(/"/g,'&quot;')});loadOltConfig(${selectedOlt.id},${o.id},'${o.serial_number}',this)">Config</button>
+                    <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();openPppoe(${o.id},'${o.serial_number}',${o.service_vlan || 'null'})">PPPoE</button>
+                    <button class="btn btn-warn" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();openWifi(${o.id},'${o.serial_number}')">WiFi</button>
+                    <button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();suspendOnu(${selectedOlt.id},${o.id})">⏸</button>
+                    <button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="event.stopPropagation();deleteOnu(${selectedOlt.id},${o.id},'${o.serial_number}')">🗑</button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (e) {
+    document.getElementById('onuTable').innerHTML = `<div style="color:var(--red);padding:16px;">${e.message}</div>`;
+  }
+}
+
+let selectedOnuRow = null;
+function showOnuDetail(rowEl, onu) {
+  // Deselect previous row
+  if (selectedOnuRow) { selectedOnuRow.style.background = ''; selectedOnuRow.classList.remove('onu-selected'); }
+  // Highlight clicked row
+  selectedOnuRow = rowEl;
+  rowEl.style.background = 'var(--surface2)';
+  rowEl.classList.add('onu-selected');
+
+  // Show panel with loading state
+  document.getElementById('odSerial').textContent = onu.serial_number;
+  document.getElementById('odPath').textContent = '';
+  document.getElementById('odLoading').style.display = 'block';
+  document.getElementById('odContent').classList.add('hidden');
+  document.getElementById('onuDetailPanel').classList.remove('hidden');
+  document.getElementById('onuDetailPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Populate DB fields immediately
+  document.getElementById('odCustName').textContent = onu.customer_name || '—';
+  document.getElementById('odCustId').textContent = onu.customer_id || '—';
+  document.getElementById('odCustPhone').textContent = onu.customer_phone || '—';
+  document.getElementById('odCustEmail').textContent = onu.customer_email || '—';
+  document.getElementById('odWifi2g').textContent = onu.wifi_ssid_2g || '—';
+  document.getElementById('odWifi5g').textContent = onu.wifi_ssid_5g || '—';
+  document.getElementById('odWifiPass').textContent = onu.wifi_password || '—';
+
+  // Fetch full OLT config + status + WAN in one call
+  fetchOnuOltDetails(onu);
+}
+
+async function fetchOnuOltDetails(onu) {
+  try {
+    const data = await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus/${onu.id}/olt-config`);
+    const c = data?.data || {};
+
+    document.getElementById('odPath').textContent = c.onu_path || '';
+
+    // PPPoE (from OLT pon-onu-mng — the live truth)
+    const pm = c.pon_onu_mng || {};
+    document.getElementById('odPppUser').textContent = pm.pppoe_username || onu.pppoe_username || '—';
+    document.getElementById('odPppPass').textContent = pm.pppoe_password || onu.pppoe_password || '—';
+
+    // Status
+    const st = c.status || {};
+    const iface = c.interface || {};
+    const stHtml = `
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">State:</span> <span class="badge ${st.oper_state==='working'?'badge-green':'badge-orange'}">${st.oper_state||'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Admin:</span> ${st.admin_state||'—'}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Distance:</span> ${st.distance?st.distance+'m':'—'}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Online:</span> ${st.online_duration||'—'}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Down cause:</span> ${st.last_down_cause||'—'}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Mode:</span> <span class="badge ${pm.mode==='pppoe'?'badge-blue':'badge-muted'}">${pm.mode||'—'}</span></div>
+    `;
+    document.getElementById('odStatusContent').innerHTML = stHtml;
+
+    // Optical
+    const opt = c.optical || {};
+    const optHtml = `
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Rx Power:</span> <span style="font-family:monospace;color:${parseFloat(opt.rx_power||0)<=-25?'var(--red)':'var(--green)'};">${opt.rx_power?opt.rx_power+' dBm':'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Tx Power:</span> <span style="font-family:monospace;">${opt.tx_power?opt.tx_power+' dBm':'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">OLT Rx:</span> <span style="font-family:monospace;">${opt.olt_rx_power?opt.olt_rx_power+' dBm':'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Temp:</span> ${opt.temperature?opt.temperature+'C':'—'}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Voltage:</span> ${opt.voltage?opt.voltage+'V':'—'}</div>
+    `;
+    document.getElementById('odOpticalContent').innerHTML = optHtml;
+
+    // WAN
+    const w = c.wan || {};
+    const hasNet = w.has_internet;
+    const wanHtml = `
+      <div style="font-size:13px;">${hasNet?'<span class="badge badge-green">Online</span>':'<span class="badge badge-orange">No IP</span>'}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">IP:</span> <span style="font-family:monospace;color:${hasNet?'var(--green)':'var(--red)'};">${w.ip_address||'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Gateway:</span> <span style="font-family:monospace;">${w.gateway||'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">DNS:</span> <span style="font-family:monospace;">${w.dns1||'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">MAC:</span> <span style="font-family:monospace;">${w.mac_address||'—'}</span></div>
+    `;
+    document.getElementById('odWanContent').innerHTML = wanHtml;
+
+    // Interface config + pon-onu-mng raw
+    document.getElementById('odInterfaceConfig').textContent = c.interface_config || '(empty)';
+    document.getElementById('odPonOnuMngConfig').textContent = c.pon_onu_mng_config || '(empty)';
+
+    document.getElementById('odLoading').style.display = 'none';
+    document.getElementById('odContent').classList.remove('hidden');
+  } catch(e) {
+    document.getElementById('odLoading').innerHTML = `<div style="color:var(--red);">Failed to load OLT details: ${e.message}</div>`;
+    document.getElementById('odContent').classList.remove('hidden');
+    // Still show DB data
+    document.getElementById('odPppUser').textContent = onu.pppoe_username || '—';
+    document.getElementById('odPppPass').textContent = onu.pppoe_password || '—';
+    document.getElementById('odStatusContent').innerHTML = '<div style="color:var(--text-muted);font-size:12px;">Could not reach OLT</div>';
+    document.getElementById('odOpticalContent').innerHTML = '—';
+    document.getElementById('odWanContent').innerHTML = '—';
+    document.getElementById('odInterfaceConfig').textContent = '(unavailable)';
+    document.getElementById('odPonOnuMngConfig').textContent = '(unavailable)';
+  }
+}
+
+async function checkWanStatus(oltId, onuId, sn, btnEl) {
+  const origText = btnEl.textContent;
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner"></span>';
+  // Also update detail panel WAN section if visible
+  const wanEl = document.getElementById('odWanContent');
+  if (wanEl && !document.getElementById('onuDetailPanel').classList.contains('hidden')) {
+    wanEl.innerHTML = '<span class="spinner"></span> Querying OLT…';
+  }
+  try {
+    const data = await apiFetch(`/api/v1/olts/${oltId}/onus/${onuId}/wan`);
+    const w = data?.data || {};
+    const hasNet = w.has_internet;
+    const ip = w.ip_address || '—';
+    const gw = w.gateway || '—';
+    const mask = w.subnet_mask || '—';
+    const dns = w.dns1 || '—';
+    const wanSt = w.wan_status || w.pppoe_status || '—';
+    const mode = w.connection_mode || '—';
+
+    const statusBadge = hasNet
+      ? '<span class="badge badge-green">Online</span>'
+      : '<span class="badge badge-orange">No IP</span>';
+
+    const html = `
+      <div style="font-size:13px;">${statusBadge}</div>
+      <div style="font-size:13px;margin-top:4px;"><span style="color:var(--text-muted);">IP:</span> <span style="font-family:monospace;color:${hasNet ? 'var(--green)' : 'var(--red)'};">${ip}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Mask:</span> <span style="font-family:monospace;">${mask}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Gateway:</span> <span style="font-family:monospace;">${gw}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">DNS:</span> <span style="font-family:monospace;">${dns}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Mode:</span> ${mode}</div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">WAN:</span> ${wanSt}</div>
+    `;
+    if (wanEl) wanEl.innerHTML = html;
+    log(hasNet ? 'ok' : 'warn', `WAN ${sn}: IP=${ip} GW=${gw} Mode=${mode} Status=${wanSt}`);
+  } catch(e) {
+    if (wanEl) wanEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Error: ${e.message}</div>`;
+    log('err', `WAN check failed for ${sn}: ${e.message}`);
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = origText;
+  }
+}
+
+async function loadOltConfig(oltId, onuId, sn, btnEl) {
+  const origText = btnEl.textContent;
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner"></span>';
+  const cfgSection = document.getElementById('odConfigSection');
+  cfgSection.classList.remove('hidden');
+  document.getElementById('odInterfaceConfig').textContent = 'Loading...';
+  document.getElementById('odPonOnuMngConfig').textContent = 'Loading...';
+  document.getElementById('odConfigPath').textContent = '';
+  try {
+    const data = await apiFetch(`/api/v1/olts/${oltId}/onus/${onuId}/olt-config`);
+    const c = data?.data || {};
+    document.getElementById('odConfigPath').textContent = c.onu_path || '';
+    document.getElementById('odInterfaceConfig').textContent = c.interface_config || '(empty)';
+    document.getElementById('odPonOnuMngConfig').textContent = c.pon_onu_mng_config || '(empty)';
+    log('ok', `OLT config loaded for ${sn}`);
+  } catch(e) {
+    document.getElementById('odInterfaceConfig').textContent = 'Error: ' + e.message;
+    document.getElementById('odPonOnuMngConfig').textContent = '';
+    log('err', `OLT config failed for ${sn}: ${e.message}`);
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = origText;
+  }
+}
+
+async function scanAllKnownPorts() {
+  if (!selectedOlt) return;
+  const btn = document.getElementById('scanAllBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Scanning…';
+  document.getElementById('unregisteredTable').innerHTML = '<div style="text-align:center;padding:24px;"><span class="spinner"></span></div>';
+  document.getElementById('unregCount').textContent = '';
+
+  // Derive unique ports from provisioned ONUs already loaded
+  let ports = [];
+  try {
+    const data = await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus?page_size=200`);
+    const onus = data?.data?.items || data?.data || [];
+    const seen = new Set();
+    onus.forEach(o => {
+      const key = `${o.frame}/${o.slot}/${o.port}`;
+      if (!seen.has(key)) { seen.add(key); ports.push({frame:o.frame, slot:o.slot, port:o.port}); }
+    });
+  } catch(e) {}
+  if (!ports.length) ports = [{frame:1, slot:7, port:2}];
+
+  // Scan each port for unregistered ONUs
+  let allUnreg = [];
+  for (const p of ports) {
+    try {
+      const data = await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus/unregistered?frame=${p.frame}&slot=${p.slot}&port=${p.port}`);
+      (data?.data || []).forEach(o => allUnreg.push(o));
+    } catch(e) {}
+  }
+
+  if (!allUnreg.length) {
+    document.getElementById('unregisteredTable').innerHTML =
+      '<div class="card" style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">No unregistered ONUs found on scanned ports</div>';
+    document.getElementById('unregCount').textContent = '(0)';
+  } else {
+    document.getElementById('unregCount').textContent = `(${allUnreg.length})`;
+    document.getElementById('unregisteredTable').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+              ${['Port','Serial Number','Status','Action'].map(h=>`<th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${h}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${allUnreg.map(o=>`
+              <tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;color:var(--accent);">${o.frame}/${o.slot}/${o.port}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;color:var(--yellow);">${o.serial_number}</td>
+                <td style="padding:9px 12px;"><span class="badge badge-orange">Unregistered</span></td>
+                <td style="padding:9px 12px;">
+                  <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="autofillAndSwitch('${o.serial_number}',${o.frame},${o.slot},${o.port})">→ Provision</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+  btn.disabled = false;
+  btn.innerHTML = '🔍 Scan Known Ports';
+}
+
+function autofillAndSwitch(serial, frame, slot, port) {
+  document.getElementById('serialNumber').value = serial;
+  document.getElementById('frame').value = frame;
+  document.getElementById('slot').value  = slot;
+  document.getElementById('port').value  = port;
+  const tabs = document.querySelectorAll('.tab');
+  document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+  tabs.forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-provision').classList.remove('hidden');
+  tabs[0].classList.add('active');
+}
+
+async function suspendOnu(oltId, onuId) {
+  try {
+    await apiFetch(`/api/v1/olts/${oltId}/onus/${onuId}/suspend`, { method: 'POST' });
+    log('ok', `ONU ${onuId} suspended`);
+    loadOnus();
+  } catch(e) { log('err', 'Suspend failed: ' + e.message); }
+}
+
+async function deleteOnu(oltId, onuId, sn) {
+  if (!confirm(`De-provision ONU ${sn}? This will remove it from the OLT.`)) return;
+  try {
+    await apiFetch(`/api/v1/olts/${oltId}/onus/${onuId}`, { method: 'DELETE' });
+    log('ok', `ONU ${sn} removed`);
+    loadOnus();
+  } catch(e) { log('err', 'Remove failed: ' + e.message); }
+}
+
+// ──── PPPOE/WIFI MODALS ────
+function openPppoe(onuId, sn, currentVlan) {
+  modalOnu = { id: onuId, sn };
+  document.getElementById('pppoeModalSn').textContent = `Serial: ${sn} | ONU ID: ${onuId}`;
+  document.getElementById('mpUser').value = '';
+  document.getElementById('mpPass').value = '';
+  document.getElementById('mpVlan').value = currentVlan || '';
+  document.getElementById('pppoeModal').classList.remove('hidden');
+}
+
+function openWifi(onuId, sn) {
+  modalOnu = { id: onuId, sn };
+  document.getElementById('wifiModalSn').textContent = `Serial: ${sn} | ONU ID: ${onuId}`;
+  document.getElementById('mw2g').value  = '';
+  document.getElementById('mw5g').value  = '';
+  document.getElementById('mwPass').value = '';
+  document.getElementById('wifiModal').classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  const msg = document.getElementById(id === 'pppoeModal' ? 'pppoeModalMsg' : 'wifiModalMsg');
+  if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+}
+
+function _modalMsg(id, text, ok) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.background = ok ? 'var(--green-dim, #1a3a1a)' : 'var(--red-dim, #3a1a1a)';
+  el.style.color = ok ? 'var(--green, #4caf50)' : 'var(--red, #f44336)';
+}
+
+async function submitPppoe() {
+  const user = document.getElementById('mpUser').value.trim();
+  const pass = document.getElementById('mpPass').value;
+  const vlanVal = document.getElementById('mpVlan').value.trim();
+  if (!user || !pass) { _modalMsg('pppoeModalMsg', 'Username and password are required', false); return; }
+  const payload = { pppoe_username: user, pppoe_password: pass };
+  if (vlanVal) payload.service_vlan = parseInt(vlanVal, 10);
+  const btn = document.getElementById('pppoePushBtn');
+  btn.disabled = true; btn.textContent = 'Pushing via OLT…';
+  try {
+    await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus/${modalOnu.id}/pppoe`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    const vlanMsg = vlanVal ? ` | VLAN: ${vlanVal}` : '';
+    _modalMsg('pppoeModalMsg', `✓ Pushed via OLT — PPPoE: ${user}${vlanMsg}`, true);
+    log('ok', `PPPoE+VLAN pushed via OLT for ${modalOnu.sn} → ${user}${vlanMsg}`);
+    setTimeout(() => { closeModal('pppoeModal'); loadOnus(); }, 1500);
+  } catch(e) {
+    _modalMsg('pppoeModalMsg', 'Error: ' + e.message, false);
+    log('err', 'PPPoE/VLAN update failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Push via OLT';
+  }
+}
+
+async function submitWifi() {
+  const ssid2g = document.getElementById('mw2g').value.trim();
+  const ssid5g = document.getElementById('mw5g').value.trim();
+  const pass   = document.getElementById('mwPass').value.trim();
+  if (!ssid2g || !ssid5g || !pass) { _modalMsg('wifiModalMsg', 'All WiFi fields are required', false); return; }
+  const btn = document.getElementById('wifiPushBtn');
+  btn.disabled = true; btn.textContent = 'Pushing…';
+  try {
+    await apiFetch(`/api/v1/olts/${selectedOlt.id}/onus/${modalOnu.id}/wifi`, {
+      method: 'PUT',
+      body: JSON.stringify({ ssid_2g: ssid2g, ssid_5g: ssid5g, password: pass }),
+    });
+    _modalMsg('wifiModalMsg', `✓ WiFi pushed — ${ssid2g} / ${ssid5g}`, true);
+    log('ok', `WiFi pushed for ${modalOnu.sn} → ${ssid2g} / ${ssid5g}`);
+    setTimeout(() => closeModal('wifiModal'), 1500);
+  } catch(e) {
+    _modalMsg('wifiModalMsg', 'Error: ' + e.message, false);
+    log('err', 'WiFi update failed: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Push to ONU';
+  }
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.add('hidden'); });
+});
+
+// ──── STEPS ────
+function setStep(n, state) {
+  const el = document.getElementById('s' + n);
+  if (!el) return;
+  el.className = 'step ' + state;
+  const icon = el.querySelector('.step-icon');
+  icon.textContent = state === 'done' ? '✓' : state === 'error' ? '✕' : state === 'running' ? '●' : state === 'skip' ? '—' : String(n);
+}
+function resetSteps() { for (let i = 1; i <= 8; i++) setStep(i, 'pending'); }
+
+// ──── CONSOLE ────
+function log(type, msg) {
+  const con = document.getElementById('console');
+  if (consoleEmpty) { con.innerHTML = ''; consoleEmpty = false; }
+  const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  const tags   = { info:'tag-info', ok:'tag-ok', err:'tag-err', warn:'tag-warn', cmd:'tag-cmd' };
+  const labels = { info:'INFO', ok:' OK ', err:' ERR', warn:'WARN', cmd:' CMD' };
+  const line = document.createElement('div');
+  line.className = 'console-line';
+  line.innerHTML = `
+    <span class="console-ts">${now}</span>
+    <span class="console-tag ${tags[type]||'tag-info'}">${labels[type]||'INFO'}</span>
+    <span class="console-msg">${msg}</span>`;
+  con.appendChild(line);
+  con.scrollTop = con.scrollHeight;
+}
+function clearConsole() {
+  document.getElementById('console').innerHTML = '<div class="console-empty">Console output will appear here…</div>';
+  consoleEmpty = true;
+}
+
+// ──── ALARMS & TICKETS ────────────────────────────────────────────────────────
+
+let _alarmAutoRefresh = null;
+let _activeTicketId = null;
+
+function showAlarmSub(name, el) {
+  document.querySelectorAll('[id^="alarm-sub-"]').forEach(t => t.classList.add('hidden'));
+  document.querySelectorAll('#alarmSubBar .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('alarm-sub-' + name).classList.remove('hidden');
+  el.classList.add('active');
+}
+
+async function loadAlarms() {
+  try {
+    const data = await apiFetch('/api/v1/alarms?status=active&limit=200');
+    const alarms = data?.data || [];
+    const los    = alarms.filter(a => a.alarm_type === 'los').length;
+    const lowRx  = alarms.filter(a => a.alarm_type === 'low_rx').length;
+    document.getElementById('statActiveAlarms').textContent = alarms.length;
+    document.getElementById('statLos').textContent  = los;
+    document.getElementById('statLowRx').textContent = lowRx;
+    // Badge on tab
+    const badge = document.getElementById('alarmBadge');
+    if (alarms.length) { badge.textContent = alarms.length; badge.style.display = ''; }
+    else badge.style.display = 'none';
+
+    if (!alarms.length) {
+      document.getElementById('alarmsTable').innerHTML =
+        '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No active alarms</div>';
+      return;
+    }
+    const sevColor = s => s === 'critical' ? 'var(--red)' : s === 'major' ? 'var(--orange)' : 'var(--yellow)';
+    document.getElementById('alarmsTable').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+              ${['Serial','Customer','OLT / Port','Type','Severity','Rx (dBm)','Detected','Ticket'].map(h =>
+                `<th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${h}</th>`
+              ).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${alarms.map(a => `
+              <tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;color:var(--yellow);">${a.serial_number}</td>
+                <td style="padding:9px 12px;font-size:12px;">${a.customer_id}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:11px;color:var(--text-muted);">${a.olt_name}<br>${a.port}</td>
+                <td style="padding:9px 12px;"><span class="badge ${a.alarm_type==='los'?'badge-red':'badge-orange'}">${a.alarm_type==='los'?'LOS':'Low Rx'}</span></td>
+                <td style="padding:9px 12px;font-size:12px;font-weight:600;color:${sevColor(a.severity)};">${a.severity}</td>
+                <td style="padding:9px 12px;font-size:12px;color:var(--text-muted);">${a.rx_power != null ? a.rx_power : '—'}</td>
+                <td style="padding:9px 12px;font-size:11px;color:var(--text-muted);">${new Date(a.detected_at+'Z').toLocaleString()}</td>
+                <td style="padding:9px 12px;font-size:12px;">${a.ticket_id ? `<span style="color:var(--accent);">#${a.ticket_id}</span>` : '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    document.getElementById('alarmsTable').innerHTML = `<div style="color:var(--red);padding:16px;">${e.message}</div>`;
+  }
+}
+
+async function loadTickets() {
+  const status = document.getElementById('ticketStatusFilter')?.value || '';
+  try {
+    const url = '/api/v1/tickets?limit=200' + (status ? `&status=${status}` : '');
+    const data = await apiFetch(url);
+    const tickets = data?.data || [];
+    const open = tickets.filter(t => ['open','assigned','in_progress'].includes(t.status)).length;
+    document.getElementById('statOpenTickets').textContent = open;
+
+    if (!tickets.length) {
+      document.getElementById('ticketsTable').innerHTML =
+        '<div class="card" style="text-align:center;padding:32px;color:var(--text-muted);">No tickets found</div>';
+      return;
+    }
+    const statusColor = s => ({open:'badge-red',assigned:'badge-orange',in_progress:'badge-blue',resolved:'badge-green',closed:'badge-muted'})[s]||'badge-muted';
+    document.getElementById('ticketsTable').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+              ${['#','Title','Customer','Port','Status','Priority','Technician','Created','Actions'].map(h =>
+                `<th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${h}</th>`
+              ).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${tickets.map(t => `
+              <tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                <td style="padding:9px 12px;font-size:12px;color:var(--text-muted);">${t.id}</td>
+                <td style="padding:9px 12px;font-size:12px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${t.title}">${t.title}</td>
+                <td style="padding:9px 12px;font-size:12px;">${t.customer_id}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:11px;color:var(--accent);">${t.port}</td>
+                <td style="padding:9px 12px;"><span class="badge ${statusColor(t.status)}">${t.status.replace('_',' ')}</span></td>
+                <td style="padding:9px 12px;"><span class="badge ${t.priority==='high'?'badge-red':t.priority==='medium'?'badge-orange':'badge-muted'}">${t.priority}</span></td>
+                <td style="padding:9px 12px;font-size:12px;">${t.technician_name||'—'}</td>
+                <td style="padding:9px 12px;font-size:11px;color:var(--text-muted);">${new Date(t.created_at+'Z').toLocaleDateString()}</td>
+                <td style="padding:9px 12px;">
+                  <div style="display:flex;gap:4px;">
+                    ${!['resolved','closed'].includes(t.status) ? `<button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;" onclick="openAssign(${t.id},'${t.title.replace(/'/g,'').substring(0,40)}')">Assign</button>` : ''}
+                    ${!['resolved','closed'].includes(t.status) ? `<button class="btn btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="openResolve(${t.id},'${t.title.replace(/'/g,'').substring(0,40)}')">Resolve</button>` : ''}
+                  </div>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    document.getElementById('ticketsTable').innerHTML = `<div style="color:var(--red);padding:16px;">${e.message}</div>`;
+  }
+}
+
+async function loadTechnicians() {
+  try {
+    const data = await apiFetch('/api/v1/technicians');
+    const techs = data?.data || [];
+    if (!techs.length) {
+      document.getElementById('techTable').innerHTML =
+        '<div class="card" style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px;">No technicians added yet</div>';
+      return;
+    }
+    document.getElementById('techTable').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+              ${['Name','Phone','Email','Zone','Status','Actions'].map(h =>
+                `<th style="padding:9px 12px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;">${h}</th>`
+              ).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${techs.map(t => `
+              <tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                <td style="padding:9px 12px;font-size:13px;font-weight:600;">${t.name}</td>
+                <td style="padding:9px 12px;font-size:12px;">${t.phone||'—'}</td>
+                <td style="padding:9px 12px;font-size:12px;">${t.email||'—'}</td>
+                <td style="padding:9px 12px;font-size:12px;">${t.zone||'—'}</td>
+                <td style="padding:9px 12px;"><span class="badge ${t.active?'badge-green':'badge-muted'}">${t.active?'Active':'Inactive'}</span></td>
+                <td style="padding:9px 12px;">
+                  <button class="btn btn-danger" style="padding:3px 8px;font-size:11px;" onclick="deleteTechnician(${t.id},'${t.name}')">Remove</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    document.getElementById('techTable').innerHTML = `<div style="color:var(--red);padding:16px;">${e.message}</div>`;
+  }
+}
+
+async function addTechnician() {
+  const name  = document.getElementById('techName').value.trim();
+  const phone = document.getElementById('techPhone').value.trim();
+  const email = document.getElementById('techEmail').value.trim();
+  const zone  = document.getElementById('techZone').value.trim();
+  if (!name) { alert('Name is required'); return; }
+  try {
+    await apiFetch('/api/v1/technicians', { method: 'POST', body: JSON.stringify({ name, phone:phone||null, email:email||null, zone:zone||null }) });
+    document.getElementById('techName').value = '';
+    document.getElementById('techPhone').value = '';
+    document.getElementById('techEmail').value = '';
+    document.getElementById('techZone').value = '';
+    loadTechnicians();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+async function deleteTechnician(id, name) {
+  if (!confirm(`Remove technician ${name}?`)) return;
+  try {
+    await apiFetch(`/api/v1/technicians/${id}`, { method: 'DELETE' });
+    loadTechnicians();
+  } catch(e) { alert('Failed: ' + e.message); }
+}
+
+// ── Assign / Resolve modals ────────────────────────────────────────────────────
+
+async function openAssign(ticketId, title) {
+  _activeTicketId = ticketId;
+  document.getElementById('assignModalTitle').textContent = `Ticket #${ticketId}: ${title}`;
+  document.getElementById('assignModalMsg').style.display = 'none';
+  // Load technicians into select
+  const data = await apiFetch('/api/v1/technicians');
+  const techs = (data?.data || []).filter(t => t.active);
+  const sel = document.getElementById('assignTechSelect');
+  sel.innerHTML = techs.map(t => `<option value="${t.id}">${t.name}${t.zone?' ('+t.zone+')':''}</option>`).join('');
+  if (!techs.length) sel.innerHTML = '<option value="">No active technicians</option>';
+  document.getElementById('assignNote').value = '';
+  document.getElementById('assignModal').classList.remove('hidden');
+}
+
+async function submitAssign() {
+  const btn = document.getElementById('assignSubmitBtn');
+  const techId = parseInt(document.getElementById('assignTechSelect').value);
+  const note   = document.getElementById('assignNote').value.trim();
+  if (!techId) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await apiFetch(`/api/v1/tickets/${_activeTicketId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ technician_id: techId, notes: note||null }),
+    });
+    _modalMsg('assignModalMsg', 'Ticket assigned and technician notified', true);
+    setTimeout(() => { closeModal('assignModal'); loadTickets(); }, 1200);
+  } catch(e) {
+    _modalMsg('assignModalMsg', e.message, false);
+    btn.disabled = false; btn.innerHTML = 'Assign';
+  }
+}
+
+function openResolve(ticketId, title) {
+  _activeTicketId = ticketId;
+  document.getElementById('resolveModalTitle').textContent = `Ticket #${ticketId}: ${title}`;
+  document.getElementById('resolveNotes').value = '';
+  document.getElementById('resolveModalMsg').style.display = 'none';
+  document.getElementById('resolveModal').classList.remove('hidden');
+}
+
+async function submitResolve() {
+  const btn = document.getElementById('resolveSubmitBtn');
+  const notes = document.getElementById('resolveNotes').value.trim();
+  if (!notes) { alert('Resolution notes are required'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await apiFetch(`/api/v1/tickets/${_activeTicketId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolution_notes: notes }),
+    });
+    _modalMsg('resolveModalMsg', 'Ticket resolved', true);
+    setTimeout(() => { closeModal('resolveModal'); loadTickets(); loadAlarms(); }, 1200);
+  } catch(e) {
+    _modalMsg('resolveModalMsg', e.message, false);
+    btn.disabled = false; btn.innerHTML = 'Mark Resolved';
+  }
+}
+
+// Auto-refresh alarms badge every 60s regardless of active tab
+setInterval(async () => {
+  try {
+    const data = await apiFetch('/api/v1/alarms?status=active&limit=1');
+    const count = (data?.data || []).length > 0 ? '!' : null;
+    // Just update the badge count properly
+    const alarmData = await apiFetch('/api/v1/alarms?status=active&limit=200');
+    const n = (alarmData?.data || []).length;
+    const badge = document.getElementById('alarmBadge');
+    if (n) { badge.textContent = n; badge.style.display = ''; }
+    else badge.style.display = 'none';
+  } catch(e) {}
+}, 60000);
+</script>
+</body>
+</html>
