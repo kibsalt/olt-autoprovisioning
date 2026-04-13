@@ -616,40 +616,25 @@ async def get_olt_config(
     }
 
     # 1. Interface running config (tcont, gemport, service-port)
-    # C300/C320: gpon-onu interfaces use 'show onu running config' not 'show running-config interface'
+    # Uses 'show running-config interface gpon-onu_F/S/P:ID' — fails silently for offline ONUs
     try:
-        raw = await driver.ssh.execute(f"show onu running config {onu_path}")
+        raw = await driver.ssh.execute(f"show running-config interface {onu_path}")
         result["interface_config"] = _clean_config(raw)
         result["interface"] = _parse_interface_fields(raw)
-    except Exception as e:
-        result["interface_config"] = f"Error: {e}"
+    except Exception:
+        result["interface_config"] = ""
         result["interface"] = {}
 
     # 2. pon-onu-mng config (flow, PPPoE, vlan-filter, security)
+    # Uses 'show onu running config gpon-onu_F/S/P:ID'
     try:
-        raw = await driver.ssh.execute(
-            f"show running-config | begin pon-onu-mng {onu_path}"
-        )
-        lines = raw.split("\n")
-        capture = False
-        clean = []
-        for l in lines:
-            stripped = l.strip()
-            if f"pon-onu-mng {onu_path}" in l:
-                capture = True
-                continue
-            elif capture and stripped == "!":
-                break
-            elif capture and "pon-onu-mng" in stripped:
-                break
-            elif capture and stripped and not stripped.endswith("#"):
-                clean.append(stripped)
-        pon_raw = "\n".join(clean)
-        result["pon_onu_mng_config"] = pon_raw
-        result["pon_onu_mng"] = _parse_pon_onu_mng_fields(pon_raw)
-    except Exception as e:
-        result["pon_onu_mng_config"] = f"Error: {e}"
+        raw = await driver.ssh.execute(f"show onu running config {onu_path}")
+        result["pon_onu_mng_config"] = _clean_config(raw)
+        result["pon_onu_mng"] = _parse_pon_onu_mng_fields(raw)
+    except Exception:
+        result["pon_onu_mng_config"] = ""
         result["pon_onu_mng"] = {}
+
 
     # 3. ONU detail info (state, distance, online duration)
     try:
