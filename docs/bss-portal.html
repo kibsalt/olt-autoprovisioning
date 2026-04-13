@@ -480,7 +480,7 @@
           <div class="card">
             <div class="card-header"><div class="card-title">⚙️ Service</div></div>
             <div style="display:flex;flex-direction:column;gap:10px;">
-              <div class="alert alert-info">ℹ️ VLAN &amp; bandwidth are provisioned directly on the OLT. PPPoE credentials are pushed to the ONU via ACS — not stored on this server.</div>
+              <div class="alert alert-info">ℹ️ VLAN, bandwidth &amp; PPPoE credentials are provisioned directly on the OLT via OMCI. WiFi credentials are pushed via ACS/TR-069.</div>
               <div class="input-2col">
                 <div class="form-group">
                   <label>VLAN <span class="req">*</span></label>
@@ -1247,7 +1247,7 @@ async function provision() {
 
     log('ok', `ONU provisioned! ID: ${onu?.id || '—'} | Port: ${onu?.frame}/${onu?.slot}/${onu?.port}:${onu?.onu_id}`);
     log('ok', `WiFi pushed via ACS → ${wifi2g} / ${wifi5g}`);
-    if (payload.pppoe_username) log('ok', `PPPoE pushed via ACS → ${payload.pppoe_username}`);
+    if (payload.pppoe_username) log('ok', `PPPoE pushed via OLT OMCI → ${payload.pppoe_username}`);
 
     showResult(true, onu, payload);
   } catch (e) {
@@ -1280,7 +1280,7 @@ function showResult(success, onu, payload, errMsg) {
         <div class="result-item"><div class="ri-label">WiFi 2.4G</div><div class="ri-value mono">${payload?.wifi_ssid_2g || '—'}</div></div>
         <div class="result-item"><div class="ri-label">WiFi 5G</div><div class="ri-value mono">${payload?.wifi_ssid_5g || '—'}</div></div>
       </div>
-      <div style="margin-top:10px;" class="alert alert-ok">PPPoE &amp; WiFi credentials pushed to ONU via ACS. Check ACS logs to confirm delivery.</div>
+      <div style="margin-top:10px;" class="alert alert-ok">PPPoE credentials pushed via OLT OMCI. WiFi pushed via ACS. Check ACS logs to confirm WiFi delivery.</div>
     `;
   } else {
     header.className = 'result-header failure';
