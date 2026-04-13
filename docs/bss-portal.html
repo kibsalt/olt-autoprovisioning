@@ -1534,7 +1534,7 @@ async function scanAllKnownPorts() {
       if (!seen.has(key)) { seen.add(key); ports.push({frame:o.frame, slot:o.slot, port:o.port}); }
     });
   } catch(e) {}
-  if (!ports.length) ports = [{frame:1, slot:7, port:2}];
+  if (!ports.length) ports = [{frame:1, slot:9, port:2}];
 
   // Scan each port for unregistered ONUs
   let allUnreg = [];

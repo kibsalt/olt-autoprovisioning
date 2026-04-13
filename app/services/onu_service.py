@@ -301,22 +301,19 @@ async def update_pppoe(
     )
     path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
 
-    # Build pon-onu-mng commands for PPPoE (and optionally VLAN flow update)
     vlan = service_vlan if service_vlan else onu.service_vlan or 2918
-    commands = [
-        f"pon-onu-mng {path}",
-        f"pppoe 1 nat enable user {username} password {password}",
-    ]
-    if service_vlan:
-        commands += [
-            "flow mode 1 tag-filter vlan-filter untag-filter discard",
-            f"flow 1 pri 0 vlan {service_vlan}",
-            f"vlan-filter-mode iphost 1 tag-filter vlan-filter untag-filter discard",
-            f"vlan-filter iphost 1 pri 0 vlan {service_vlan}",
-        ]
-    commands.append("exit")
 
-    result = await driver.ssh.execute_config_mode(commands)
+    # Push full OMCI profile via the driver (handles model-specific syntax,
+    # stale VLAN purge, and correct pon-onu-mng context)
+    await driver.configure_omci(
+        onu_ident,
+        vlan_id=vlan,
+        acs_url=settings.acs_url,
+        acs_username=settings.acs_username,
+        acs_password=settings.acs_password,
+        pppoe_username=username,
+        pppoe_password=password,
+    )
 
     # Update DB record
     onu.pppoe_username = username
