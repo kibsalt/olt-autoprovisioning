@@ -168,6 +168,8 @@ class TITANDriver(BaseOLTDriver):
         path = f"gpon_onu-{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
         commands = [
             f"pon-onu-mng {path}",
+            "no flow 1",
+            "no vlan-filter iphost 1",
             "flow mode 1 tag-filter vlan-filter untag-filter discard",
             f"flow 1 pri 0 vlan {vlan_id}",
             "gemport 1 flow 1 dot1p-list 0",

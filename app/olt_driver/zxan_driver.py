@@ -263,7 +263,13 @@ class ZXANDriver(BaseOLTDriver):
         path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
         is_c320 = self.model == "C320"
 
-        commands = [f"pon-onu-mng {path}"]
+        commands = [
+            f"pon-onu-mng {path}",
+            # Purge existing flow and vlan-filter entries before re-applying to
+            # prevent duplicate VLAN accumulation across re-provisioning runs.
+            "no flow 1",
+            "no vlan-filter iphost 1",
+        ]
 
         if is_c320:
             commands += [
