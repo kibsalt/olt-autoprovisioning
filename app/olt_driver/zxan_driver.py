@@ -41,15 +41,28 @@ class ZXANDriver(BaseOLTDriver):
         commands = [
             f"interface gpon-olt_{onu.frame}/{onu.slot}/{onu.port}",
             f"onu {onu.onu_id} type {onu_type} sn {serial_number}",
+            "exit",
         ]
-        if description:
-            # ZTE C300 rejects descriptions with spaces — replace with underscores
-            safe_desc = description.strip().replace(" ", "_")
-            commands.append(f"onu {onu.onu_id} description {safe_desc}")
-        commands.append("exit")
         results = await self.ssh.execute_config_mode(commands)
 
-        # Step 2: Enable SN binding — non-fatal; third-party ONUs (e.g. Falba FTTM-F839) reject this
+        # Step 2: Set description inside gpon-onu interface context (not gpon-olt)
+        if description:
+            safe_desc = description.strip().replace(" ", "_")
+            try:
+                await self.ssh.execute_config_mode([
+                    f"interface gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
+                    f"description {safe_desc}",
+                    "exit",
+                ])
+            except Exception as exc:
+                logger.warning(
+                    "onu_description_skipped",
+                    platform="ZXAN",
+                    serial=serial_number,
+                    error=str(exc)[:200],
+                )
+
+        # Step 3: Enable SN binding — non-fatal; third-party ONUs (e.g. Falba FTTM-F839) reject this
         try:
             await self.ssh.execute_config_mode([
                 f"interface gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
