@@ -44,7 +44,7 @@ class OLT(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     host: Mapped[str] = mapped_column(String(45), nullable=False)
-    ssh_port: Mapped[int] = mapped_column(Integer, nullable=False, default=22)
+    ssh_port: Mapped[int] = mapped_column(Integer, nullable=False, default=23)  # Telnet port
     model: Mapped[OLTModel] = mapped_column(
         Enum(OLTModel, values_callable=lambda obj: [e.value for e in obj]), nullable=False
     )
