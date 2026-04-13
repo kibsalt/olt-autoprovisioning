@@ -616,8 +616,9 @@ async def get_olt_config(
     }
 
     # 1. Interface running config (tcont, gemport, service-port)
+    # C300/C320: gpon-onu interfaces use 'show onu running config' not 'show running-config interface'
     try:
-        raw = await driver.ssh.execute(f"show running-config interface {onu_path}")
+        raw = await driver.ssh.execute(f"show onu running config {onu_path}")
         result["interface_config"] = _clean_config(raw)
         result["interface"] = _parse_interface_fields(raw)
     except Exception as e:
