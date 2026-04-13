@@ -243,6 +243,19 @@ class ZXANDriver(BaseOLTDriver):
         results = await self.ssh.execute_config_mode(commands)
         return CommandResult(success=True, raw_output="\n".join(results))
 
+    async def _get_stale_flow_vlans(self, onu_path: str, target_vlan: int) -> list[int]:
+        """Return flow 1 VLANs currently on the ONU that are not the target VLAN."""
+        import re
+        try:
+            raw = await self.ssh.execute(f"show onu running config {onu_path}")
+            return [
+                int(m.group(1))
+                for m in re.finditer(r"flow 1 pri \d+ vlan (\d+)", raw)
+                if int(m.group(1)) != target_vlan
+            ]
+        except Exception:
+            return []
+
     async def configure_omci(
         self,
         onu: ONUIdentifier,
@@ -263,13 +276,26 @@ class ZXANDriver(BaseOLTDriver):
         path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
         is_c320 = self.model == "C320"
 
-        commands = [
-            f"pon-onu-mng {path}",
-            # Purge existing flow and vlan-filter entries before re-applying to
-            # prevent duplicate VLAN accumulation across re-provisioning runs.
-            "no flow 1",
-            "no vlan-filter iphost 1",
-        ]
+        # Remove stale flow/vlan-filter VLANs that differ from the target to
+        # prevent duplicate VLAN accumulation across re-provisioning runs.
+        # Uses specific 'no flow 1 pri 0 vlan X' rather than 'no flow 1' so
+        # that the flow entry itself survives and can be updated while the ONU
+        # is offline (blanket 'no flow 1' requires an active OMCI channel to
+        # re-create and breaks offline ONUs).
+        stale_vlans = await self._get_stale_flow_vlans(path, vlan_id)
+        purge_commands: list[str] = []
+        if stale_vlans:
+            purge_commands.append(f"pon-onu-mng {path}")
+            for v in stale_vlans:
+                purge_commands.append(f"no flow 1 pri 0 vlan {v}")
+                purge_commands.append(f"no vlan-filter iphost 1 pri 0 vlan {v}")
+            purge_commands.append("exit")
+            try:
+                await self.ssh.execute_config_mode(purge_commands)
+            except Exception as exc:
+                logger.warning("omci_purge_failed", onu=path, error=str(exc)[:200])
+
+        commands = [f"pon-onu-mng {path}"]
 
         if is_c320:
             commands += [

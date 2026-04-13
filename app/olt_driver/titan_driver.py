@@ -154,6 +154,19 @@ class TITANDriver(BaseOLTDriver):
         results = await self.ssh.execute_config_mode(commands)
         return CommandResult(success=True, raw_output="\n".join(results))
 
+    async def _get_stale_flow_vlans(self, onu_path: str, target_vlan: int) -> list[int]:
+        """Return flow 1 VLANs currently on the ONU that are not the target VLAN."""
+        import re
+        try:
+            raw = await self.ssh.execute(f"show onu running config {onu_path}")
+            return [
+                int(m.group(1))
+                for m in re.finditer(r"flow 1 pri \d+ vlan (\d+)", raw)
+                if int(m.group(1)) != target_vlan
+            ]
+        except Exception:
+            return []
+
     async def configure_omci(
         self,
         onu: ONUIdentifier,
@@ -166,10 +179,20 @@ class TITANDriver(BaseOLTDriver):
     ) -> CommandResult:
         """Push full OMCI profile via pon-onu-mng context (TITAN C600/C620/C650)."""
         path = f"gpon_onu-{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+        stale_vlans = await self._get_stale_flow_vlans(path, vlan_id)
+        if stale_vlans:
+            purge = [f"pon-onu-mng {path}"]
+            for v in stale_vlans:
+                purge.append(f"no flow 1 pri 0 vlan {v}")
+                purge.append(f"no vlan-filter iphost 1 pri 0 vlan {v}")
+            purge.append("exit")
+            try:
+                await self.ssh.execute_config_mode(purge)
+            except Exception as exc:
+                logger.warning("omci_purge_failed", onu=path, error=str(exc)[:200])
+
         commands = [
             f"pon-onu-mng {path}",
-            "no flow 1",
-            "no vlan-filter iphost 1",
             "flow mode 1 tag-filter vlan-filter untag-filter discard",
             f"flow 1 pri 0 vlan {vlan_id}",
             "gemport 1 flow 1 dot1p-list 0",
