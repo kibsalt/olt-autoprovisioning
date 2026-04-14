@@ -640,12 +640,12 @@ async def get_olt_config(
     except Exception:
         result["status"] = {}
 
-    # 4. Optical info (Rx/Tx power)
+    # 4. Optical info (Rx/Tx power, attenuation)
+    # Uses driver.get_onu_power which runs 'show pon power attenuation' on
+    # ZXAN (C300/C320) and falls back to optical-info on TITAN/older firmware.
     try:
-        raw = await driver.ssh.execute(
-            f"show gpon onu optical-info {onu_path}"
-        )
-        result["optical"] = self_parse_optical(raw)
+        power_result = await driver.get_onu_power(onu_ident)
+        result["optical"] = power_result.parsed or {}
     except Exception:
         result["optical"] = {}
 
@@ -657,24 +657,6 @@ async def get_olt_config(
         result["wan"] = {}
 
     return result
-
-
-def self_parse_optical(raw: str) -> dict:
-    """Parse optical info output."""
-    import re
-    d = {}
-    patterns = {
-        "rx_power": re.compile(r"Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
-        "tx_power": re.compile(r"Tx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
-        "olt_rx_power": re.compile(r"OLT\s+Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
-        "temperature": re.compile(r"[Tt]emperature\s*[:\(]\s*([-\d.]+)", re.I),
-        "voltage": re.compile(r"[Vv]oltage\s*[:\(]\s*([-\d.]+)", re.I),
-    }
-    for key, pattern in patterns.items():
-        m = pattern.search(raw)
-        if m:
-            d[key] = m.group(1)
-    return d
 
 
 async def get_wan_info(

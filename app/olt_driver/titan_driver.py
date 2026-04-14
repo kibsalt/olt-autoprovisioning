@@ -116,6 +116,53 @@ class TITANDriver(BaseOLTDriver):
         parsed = self.parser.parse_onu_status(raw)
         return CommandResult(success=True, raw_output=raw, parsed=parsed)
 
+    async def get_onu_power(self, onu: ONUIdentifier) -> CommandResult:
+        """Fetch per-ONU optical power levels on TITAN C600/C620/C650.
+
+        TITAN exposes optical power via the detail-info view; keys are the same
+        subset used by ZXAN's C300 attenuation parser so the portal can render
+        both platforms uniformly.
+        """
+        import re
+        path = f"gpon_onu-{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+        parsed: dict = {}
+        raw = ""
+        try:
+            raw = await self.ssh.execute(f"show gpon onu optical-info {path}")
+        except Exception as exc:
+            logger.debug("titan_optical_info_failed", onu=path, error=str(exc)[:200])
+            try:
+                raw = await self.ssh.execute(
+                    f"show gpon onu detail-info {path}"
+                )
+            except Exception as exc2:
+                logger.debug(
+                    "titan_detail_info_failed", onu=path, error=str(exc2)[:200]
+                )
+                return CommandResult(success=True, raw_output="", parsed={})
+
+        patterns = {
+            "rx_power": re.compile(
+                r"Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.IGNORECASE
+            ),
+            "tx_power": re.compile(
+                r"Tx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.IGNORECASE
+            ),
+            "olt_rx_power": re.compile(
+                r"OLT\s+Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)",
+                re.IGNORECASE,
+            ),
+            "olt_tx_power": re.compile(
+                r"OLT\s+Tx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)",
+                re.IGNORECASE,
+            ),
+        }
+        for key, pattern in patterns.items():
+            m = pattern.search(raw)
+            if m:
+                parsed[key] = m.group(1)
+        return CommandResult(success=True, raw_output=raw, parsed=parsed)
+
     async def get_onu_wan_info(self, onu: ONUIdentifier) -> CommandResult:
         path = f"gpon_onu-{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
         combined = ""

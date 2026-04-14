@@ -1,5 +1,7 @@
 """Driver for ZTE ZXAN platform (C300, C320)."""
 
+import re
+
 import structlog
 
 from app.olt_driver.base import BaseOLTDriver, CommandResult, ONUIdentifier
@@ -141,6 +143,59 @@ class ZXANDriver(BaseOLTDriver):
             return self.parser.parse_port_onu_rx(raw)
         except Exception:
             return {}
+
+    async def get_onu_power(self, onu: ONUIdentifier) -> CommandResult:
+        """Fetch per-ONU optical power levels on ZXAN C300/C320.
+
+        Primary command:
+            show pon power attenuation gpon-onu_F/S/P:ID
+
+        Returns parsed fields: rx_power, tx_power, olt_rx_power, olt_tx_power,
+        up_attenuation, down_attenuation. Falls back to 'optical-info' for older
+        firmware that lacks the attenuation command.
+        """
+        path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+        raw = ""
+        parsed: dict = {}
+        try:
+            raw = await self.ssh.execute(f"show pon power attenuation {path}")
+            parsed = self.parser.parse_power_attenuation(raw)
+        except Exception as exc:
+            logger.debug("power_attenuation_failed", onu=path, error=str(exc)[:200])
+
+        # Fallback to the older optical-info command if the attenuation command
+        # returned nothing (firmware variant or parse miss).
+        if not parsed:
+            try:
+                fallback_raw = await self.ssh.execute(
+                    f"show gpon onu optical-info {path}"
+                )
+                raw = (raw + "\n" + fallback_raw).strip()
+                m_rx = re.search(
+                    r"Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)",
+                    fallback_raw,
+                    re.IGNORECASE,
+                )
+                m_tx = re.search(
+                    r"Tx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)",
+                    fallback_raw,
+                    re.IGNORECASE,
+                )
+                m_olt_rx = re.search(
+                    r"OLT\s+Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)",
+                    fallback_raw,
+                    re.IGNORECASE,
+                )
+                if m_rx:
+                    parsed["rx_power"] = m_rx.group(1)
+                if m_tx:
+                    parsed["tx_power"] = m_tx.group(1)
+                if m_olt_rx:
+                    parsed["olt_rx_power"] = m_olt_rx.group(1)
+            except Exception as exc:
+                logger.debug("optical_info_failed", onu=path, error=str(exc)[:200])
+
+        return CommandResult(success=True, raw_output=raw, parsed=parsed)
 
     async def configure_dba_profile(
         self, profile_id: int, assured_kbps: int
