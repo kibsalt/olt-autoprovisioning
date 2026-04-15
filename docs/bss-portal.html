@@ -1408,9 +1408,6 @@ async function fetchOnuOltDetails(onu) {
       <div style="font-size:13px;"><span style="color:var(--text-muted);">ONU Rx:</span> <span style="font-family:monospace;color:${parseFloat(opt.rx_power||0)<=-25?'var(--red)':'var(--green)'};">${opt.rx_power?opt.rx_power+' dBm':'—'}</span></div>
       <div style="font-size:13px;"><span style="color:var(--text-muted);">ONU Tx:</span> <span style="font-family:monospace;">${opt.tx_power?opt.tx_power+' dBm':'—'}</span></div>
       <div style="font-size:13px;"><span style="color:var(--text-muted);">OLT Rx:</span> <span style="font-family:monospace;">${opt.olt_rx_power?opt.olt_rx_power+' dBm':'—'}</span></div>
-      <div style="font-size:13px;"><span style="color:var(--text-muted);">OLT Tx:</span> <span style="font-family:monospace;">${opt.olt_tx_power?opt.olt_tx_power+' dBm':'—'}</span></div>
-      <div style="font-size:13px;"><span style="color:var(--text-muted);">Up Atten:</span> <span style="font-family:monospace;">${opt.up_attenuation?opt.up_attenuation+' dB':'—'}</span></div>
-      <div style="font-size:13px;"><span style="color:var(--text-muted);">Down Atten:</span> <span style="font-family:monospace;">${opt.down_attenuation?opt.down_attenuation+' dB':'—'}</span></div>
     `;
     document.getElementById('odOpticalContent').innerHTML = optHtml;
 

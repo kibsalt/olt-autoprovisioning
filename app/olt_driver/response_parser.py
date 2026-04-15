@@ -143,53 +143,25 @@ class OLTResponseParser:
         return result
 
     @staticmethod
-    def parse_power_attenuation(raw: str) -> dict:
-        """Parse 'show pon power attenuation gpon-onu_F/S/P:ID' output (ZTE C300/C320).
+    def parse_onu_rx_power(raw: str) -> dict:
+        """Parse 'show pon power onu-rx gpon-onu_F/S/P:ID' output (ZTE C300/C320).
 
         Example output:
-            OLT ONU Attenuation
-            up   Rx :-18.807(dbm) Tx:2.548(dbm)  21.355(dB)
-            down Tx :6.079(dbm)   Rx:-18.532(dbm) 24.611(dB)
-
-        Legend:
-            up Rx   = OLT Rx power (upstream received at OLT)
-            up Tx   = ONU Tx power (upstream transmitted by ONU)
-            down Tx = OLT Tx power (downstream transmitted by OLT)
-            down Rx = ONU Rx power (downstream received at ONU)
-            (dB)    = optical attenuation on that direction
+            Onu                 Rx power
+            ------------------------------------
+            gpon-onu_1/9/2:1    -18.410(dbm)
 
         Returns a dict with:
-            rx_power         — ONU Rx (down Rx)      [string dBm]
-            tx_power         — ONU Tx (up Tx)        [string dBm]
-            olt_rx_power     — OLT Rx (up Rx)        [string dBm]
-            olt_tx_power     — OLT Tx (down Tx)      [string dBm]
-            up_attenuation   — upstream attenuation  [string dB]
-            down_attenuation — downstream attenuation[string dB]
+            rx_power — ONU Rx power [string dBm], if present.
         """
         result: dict = {}
-        num = r"([-+]?\d+(?:\.\d+)?)"
-        # Upstream line: "up   Rx :-18.807(dbm) Tx:2.548(dbm)  21.355(dB)"
-        up_re = re.compile(
-            rf"up\s*Rx\s*:\s*{num}\s*\(dbm\)\s*Tx\s*:\s*{num}\s*\(dbm\)(?:\s*{num}\s*\(dB\))?",
+        m = re.search(
+            r"gpon-onu_\d+/\d+/\d+:\d+\s+([-+]?\d+(?:\.\d+)?)\s*\(dbm\)",
+            raw,
             re.IGNORECASE,
         )
-        # Downstream line: "down Tx :6.079(dbm) Rx:-18.532(dbm) 24.611(dB)"
-        down_re = re.compile(
-            rf"down\s*Tx\s*:\s*{num}\s*\(dbm\)\s*Rx\s*:\s*{num}\s*\(dbm\)(?:\s*{num}\s*\(dB\))?",
-            re.IGNORECASE,
-        )
-        m_up = up_re.search(raw)
-        if m_up:
-            result["olt_rx_power"] = m_up.group(1)
-            result["tx_power"] = m_up.group(2)
-            if m_up.group(3):
-                result["up_attenuation"] = m_up.group(3)
-        m_down = down_re.search(raw)
-        if m_down:
-            result["olt_tx_power"] = m_down.group(1)
-            result["rx_power"] = m_down.group(2)
-            if m_down.group(3):
-                result["down_attenuation"] = m_down.group(3)
+        if m:
+            result["rx_power"] = m.group(1)
         return result
 
     @staticmethod
