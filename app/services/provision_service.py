@@ -131,17 +131,26 @@ async def bss_provision(
         onu_ident, data.onu_serial_number, data.onu_model, data.description
     )
 
-    # 8. Configure T-CONT with package bandwidth
-    await driver.configure_tcont(onu_ident, tcont_id=1, dba_profile_id=profile_name)
-    await driver.configure_gemport(onu_ident, gem_port=1, tcont_id=1)
-
-    # 9. Create service port (with optional Q-in-Q)
-    sp_id = 1
-    await driver.create_service_port(
-        sp_id, onu_ident, data.service_vlan,
-        gem_port=1, service_type="internet",
-        svlan=data.svlan,
-    )
+    # 8+9. Configure T-CONT, GEM port and service-port in one batched config session
+    if hasattr(driver, "configure_tcont_gemport_serviceport"):
+        await driver.configure_tcont_gemport_serviceport(
+            onu_ident,
+            tcont_id=1,
+            dba_profile_id=profile_name,
+            gem_port=1,
+            service_port_id=1,
+            vlan_tag=data.service_vlan,
+            svlan=data.svlan,
+        )
+    else:
+        # Fallback for drivers that don't support the batched method
+        await driver.configure_tcont(onu_ident, tcont_id=1, dba_profile_id=profile_name)
+        await driver.configure_gemport(onu_ident, gem_port=1, tcont_id=1)
+        await driver.create_service_port(
+            1, onu_ident, data.service_vlan,
+            gem_port=1, service_type="internet",
+            svlan=data.svlan,
+        )
 
     # 10. Push full OMCI profile via pon-onu-mng: flow, PPPoE, ACS/TR-069, security
     # Non-fatal — third-party ONUs or older firmware may not support pon-onu-mng

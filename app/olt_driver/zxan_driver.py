@@ -55,54 +55,56 @@ class ZXANDriver(BaseOLTDriver):
         onu_type: str,
         description: str | None = None,
     ) -> CommandResult:
-        # Step 1: Register ONU on the PON port
-        commands = [
-            f"interface gpon-olt_{onu.frame}/{onu.slot}/{onu.port}",
+        """Register ONU and set description + SN-bind in a single config session.
+
+        Batching all three sub-steps (register on gpon-olt, set description,
+        set sn-bind) into one execute_config_mode call cuts Telnet round-trips
+        from 15 to 8 and avoids repeated configure-terminal / end overhead.
+        """
+        gpon_olt = f"gpon-olt_{onu.frame}/{onu.slot}/{onu.port}"
+        gpon_onu = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+
+        commands: list[str] = [
+            f"interface {gpon_olt}",
             f"onu {onu.onu_id} type {onu_type} sn {serial_number}",
             "exit",
+            f"interface {gpon_onu}",
         ]
-        results = await self.ssh.execute_config_mode(commands)
-
-        # Step 2: Set description inside gpon-onu interface context (not gpon-olt)
         if description:
-            safe_desc = description.strip().replace(" ", "_")
-            try:
-                await self.ssh.execute_config_mode([
-                    f"interface gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
-                    f"description {safe_desc}",
-                    "exit",
-                ])
-            except Exception as exc:
-                logger.warning(
-                    "onu_description_skipped",
-                    platform="ZXAN",
-                    serial=serial_number,
-                    error=str(exc)[:200],
-                )
+            commands.append(f"description {description.strip().replace(' ', '_')}")
+        commands.append("sn-bind enable sn")
+        commands.append("exit")
 
-        # Step 3: Enable SN binding — non-fatal; third-party ONUs (e.g. Falba FTTM-F839) reject this
         try:
-            await self.ssh.execute_config_mode([
-                f"interface gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
-                "sn-bind enable sn",
-                "exit",
-            ])
+            results = await self.ssh.execute_config_mode(commands)
         except Exception as exc:
+            # sn-bind is rejected by some third-party ONUs — retry without it
             logger.warning(
-                "sn_bind_skipped",
+                "authorize_onu_retry_without_snbind",
                 platform="ZXAN",
                 serial=serial_number,
                 error=str(exc)[:200],
             )
+            commands_no_snbind = [
+                f"interface {gpon_olt}",
+                f"onu {onu.onu_id} type {onu_type} sn {serial_number}",
+                "exit",
+            ]
+            if description:
+                commands_no_snbind += [
+                    f"interface {gpon_onu}",
+                    f"description {description.strip().replace(' ', '_')}",
+                    "exit",
+                ]
+            results = await self.ssh.execute_config_mode(commands_no_snbind)
 
-        raw = "\n".join(results)
         logger.info(
             "onu_authorized",
             platform="ZXAN",
             serial=serial_number,
             location=f"{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
         )
-        return CommandResult(success=True, raw_output=raw)
+        return CommandResult(success=True, raw_output="\n".join(results))
 
     async def remove_onu(self, onu: ONUIdentifier) -> CommandResult:
         commands = [
@@ -305,11 +307,7 @@ class ZXANDriver(BaseOLTDriver):
     async def configure_tcont(
         self, onu: ONUIdentifier, tcont_id: int, dba_profile_id: int | str
     ) -> CommandResult:
-        """Configure T-CONT on C300/C320.
-
-        dba_profile_id can be a named profile (e.g. 'Fix_10M', 'Faiba-100Mbps')
-        or a numeric ID. Named profiles are used as both name and profile reference.
-        """
+        """Configure T-CONT on C300/C320."""
         profile_name = str(dba_profile_id)
         commands = [
             f"interface gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
@@ -324,10 +322,7 @@ class ZXANDriver(BaseOLTDriver):
         self, onu: ONUIdentifier, gem_port: int, tcont_id: int,
         profile_name: str | None = None,
     ) -> CommandResult:
-        """Configure GEM port on C300/C320.
-
-        If profile_name is given, uses it as the gemport name (matching tcont).
-        """
+        """Configure GEM port on C300/C320."""
         name_part = f" name {profile_name}" if profile_name else ""
         commands = [
             f"interface gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
@@ -335,6 +330,51 @@ class ZXANDriver(BaseOLTDriver):
             "exit",
         ]
         results = await self.ssh.execute_config_mode(commands)
+        return CommandResult(success=True, raw_output="\n".join(results))
+
+    async def configure_tcont_gemport_serviceport(
+        self,
+        onu: ONUIdentifier,
+        tcont_id: int,
+        dba_profile_id: int | str,
+        gem_port: int,
+        service_port_id: int,
+        vlan_tag: int,
+        svlan: int | None = None,
+    ) -> CommandResult:
+        """Batch T-CONT + GEM port + service-port into one config session.
+
+        Replaces three separate execute_config_mode calls (6 extra round-trips
+        for configure-terminal/end) with a single session — cuts OLT round-trips
+        from 11 to 7.
+        """
+        profile_name = str(dba_profile_id)
+        gpon_onu = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+
+        sp_cmd = f"service-port {service_port_id} vport 1 user-vlan {vlan_tag} vlan {vlan_tag}"
+        if svlan and svlan != vlan_tag:
+            sp_cmd += f" svlan {svlan}"
+
+        commands = [
+            f"interface {gpon_onu}",
+            # T-CONT
+            f"tcont {tcont_id} name {profile_name} profile {profile_name}",
+            f"tcont {tcont_id} gap mode2",
+            # GEM port
+            f"gemport {gem_port} name {profile_name} tcont {tcont_id} queue 1",
+            # Service port
+            "switchport mode hybrid vport 1",
+            sp_cmd,
+            "exit",
+        ]
+        results = await self.ssh.execute_config_mode(commands)
+        logger.info(
+            "onu_tcont_gem_sp_configured",
+            platform="ZXAN",
+            location=f"{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
+            profile=profile_name,
+            vlan=vlan_tag,
+        )
         return CommandResult(success=True, raw_output="\n".join(results))
 
     async def _get_stale_flow_vlans(self, onu_path: str, target_vlan: int) -> list[int]:
