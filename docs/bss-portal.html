@@ -255,9 +255,76 @@
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* LOGIN OVERLAY */
+  .login-overlay { position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;align-items:center;justify-content:center; }
+  .login-card { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:36px 40px;width:380px;display:flex;flex-direction:column;gap:20px; }
+  .login-logo { font-size:26px;font-weight:800;color:var(--accent);letter-spacing:-1px;text-align:center; }
+  .login-logo span { color:var(--green); }
+  .login-sub { text-align:center;color:var(--text-muted);font-size:13px;margin-top:-10px; }
+  .login-err { background:rgba(224,82,82,.12);border:1px solid rgba(224,82,82,.3);color:var(--red);padding:9px 12px;border-radius:6px;font-size:12px;text-align:center; }
+
+  /* USER BADGE IN TOPBAR */
+  .user-badge { display:flex;align-items:center;gap:10px;margin-left:auto; }
+  .role-chip { font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:10px;letter-spacing:.5px; }
+  .role-chip.admin { background:rgba(167,139,250,.15);color:var(--purple);border:1px solid rgba(167,139,250,.3); }
+  .role-chip.technician { background:rgba(0,166,81,.12);color:var(--accent);border:1px solid rgba(0,166,81,.25); }
+  .topbar-user { font-size:13px;font-weight:500; }
+
+  /* TICKET CARDS */
+  .ticket-card { background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:border-color .15s; }
+  .ticket-card:hover { border-color:var(--accent); }
+  .ticket-card.priority-high { border-left:3px solid var(--red); }
+  .ticket-card.priority-medium { border-left:3px solid var(--orange); }
+  .ticket-card.priority-low { border-left:3px solid var(--accent); }
+  .ticket-status { font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 7px;border-radius:8px; }
+  .ticket-status.open { background:rgba(212,160,23,.15);color:var(--yellow); }
+  .ticket-status.assigned { background:rgba(32,144,208,.12);color:var(--blue); }
+  .ticket-status.acknowledged { background:rgba(167,139,250,.12);color:var(--purple); }
+  .ticket-status.in_progress { background:rgba(240,140,62,.12);color:var(--orange); }
+  .ticket-status.resolved,.ticket-status.closed { background:rgba(0,166,81,.12);color:var(--accent); }
+
+  /* WIFI POPUP */
+  .wifi-popup { background:linear-gradient(135deg,#0a1e36 0%,#061020 100%);border:1px solid #1d4070;border-radius:12px;padding:24px;width:460px;display:flex;flex-direction:column;gap:16px; }
+  .wifi-popup-title { font-size:16px;font-weight:700;color:#7dd3fc;text-align:center; }
+  .wifi-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+  .wifi-item { background:rgba(56,189,248,.05);border:1px solid rgba(56,189,248,.15);border-radius:8px;padding:12px; }
+  .wifi-item-label { font-size:10px;color:#4d8ab5;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px; }
+  .wifi-item-val { font-family:monospace;font-size:13px;color:#38bdf8;font-weight:600;word-break:break-all; }
+  .wifi-pass-big { grid-column:1/-1;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:8px;padding:14px;text-align:center; }
+  .wifi-pass-big .wifi-item-label { font-size:11px;margin-bottom:6px; }
+  .wifi-pass-big .wifi-item-val { font-size:22px;letter-spacing:4px; }
+
+  /* ADMIN TABLE */
+  .user-row { display:grid;grid-template-columns:140px 80px 160px 80px 80px auto;gap:8px;align-items:center;padding:8px 10px;border-radius:6px;font-size:13px; }
+  .user-row:hover { background:var(--surface2); }
+  .user-row-head { font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-bottom:1px solid var(--border); }
+
+  /* TECH PROVISION */
+  .onu-pick-row { display:grid;grid-template-columns:80px 80px 80px 1fr auto;gap:8px;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:13px;cursor:pointer;transition:background .15s; }
+  .onu-pick-row:hover { background:#1a2e1a; }
+  .onu-pick-row.selected { background:#0d2a0d;border:1px solid var(--accent); }
 </style>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">JTL<span>.</span>BSS</div>
+    <div class="login-sub">ONU Provisioning Portal — Sign in to continue</div>
+    <div id="loginErr" class="login-err hidden"></div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="loginUser" placeholder="username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
 
 <!-- TOP BAR -->
 <div class="topbar">
@@ -267,6 +334,12 @@
   <div class="topbar-status">
     <div class="status-dot" id="apiDot"></div>
     <span id="apiStatus">Connecting…</span>
+  </div>
+  <div class="user-badge" id="userBadge" style="display:none;">
+    <span class="topbar-user" id="userNameDisplay"></span>
+    <span class="role-chip" id="userRoleChip"></span>
+    <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;" onclick="openModal('changePwModal')">🔑 Password</button>
+    <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:var(--red);" onclick="doLogout()">Sign Out</button>
   </div>
 </div>
 
@@ -411,9 +484,12 @@
   <div class="main">
 
     <div class="tab-bar">
-      <div class="tab active" onclick="showTab('provision', this)">Provision ONU</div>
-      <div class="tab" onclick="showTab('manage', this)">Manage ONUs</div>
-      <div class="tab" onclick="showTab('alarms', this)">Alarms &amp; Tickets <span id="alarmBadge" class="badge badge-red" style="display:none;margin-left:4px;"></span></div>
+      <div class="tab admin-only" onclick="showTab('provision', this)" id="tabProvision">Provision ONU</div>
+      <div class="tab admin-only" onclick="showTab('manage', this)" id="tabManage">Manage ONUs</div>
+      <div class="tab admin-only" onclick="showTab('alarms', this)" id="tabAlarms">Alarms &amp; Tickets <span id="alarmBadge" class="badge badge-red" style="display:none;margin-left:4px;"></span></div>
+      <div class="tab tech-only hidden" onclick="showTab('mytickets', this)" id="tabMyTickets">My Tickets <span id="myTicketBadge" class="badge badge-red" style="display:none;margin-left:4px;"></span></div>
+      <div class="tab tech-only hidden" onclick="showTab('techprovision', this)" id="tabTechProvision">Provisioning</div>
+      <div class="tab admin-only hidden" onclick="showTab('adminusers', this)" id="tabAdmin">Admin</div>
     </div>
 
     <!-- ===== TAB: PROVISION ===== -->
@@ -776,8 +852,206 @@
 
     </div><!-- /tab-alarms -->
 
+    <!-- ===== TAB: MY TICKETS (technician) ===== -->
+    <div id="tab-mytickets" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="section-label" style="margin:0;">My Assigned Tickets</div>
+        <button class="btn btn-secondary" onclick="loadMyTickets()">↻ Refresh</button>
+      </div>
+      <div id="myTicketList" style="display:flex;flex-direction:column;gap:10px;">
+        <div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">Loading tickets…</div>
+      </div>
+    </div><!-- /tab-mytickets -->
+
+    <!-- ===== TAB: TECH PROVISIONING ===== -->
+    <div id="tab-techprovision" class="hidden">
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;">
+        <!-- LEFT: OLT + ONU selection -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="card">
+            <div class="card-header"><div class="card-title">📡 Select OLT</div></div>
+            <div class="form-group">
+              <select id="techOltSelect" onchange="techOltSelected()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:var(--radius);font-size:13px;">
+                <option value="">— Select OLT —</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost btn-full" onclick="scanUnregistered()" id="techScanBtn" disabled>🔍 Scan Unregistered ONUs</button>
+          </div>
+          <div class="card" id="techOnuListCard" style="display:none;">
+            <div class="card-header">
+              <div class="card-title">Unregistered ONUs</div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="text" id="techOnuSearch" placeholder="Search serial…" oninput="filterTechOnus(this.value)" style="font-size:12px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:4px;width:130px;">
+              </div>
+            </div>
+            <div id="techOnuList" style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;"></div>
+          </div>
+        </div>
+        <!-- RIGHT: Provision form -->
+        <div class="card" id="techProvForm" style="display:none;">
+          <div class="card-header"><div class="card-title">Provision ONU</div></div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;font-size:12px;">
+              <div style="color:var(--text-muted);margin-bottom:4px;">Selected ONU</div>
+              <div style="font-family:monospace;color:var(--yellow);font-weight:600;" id="techSelectedSerial">—</div>
+              <div style="color:var(--text-muted);margin-top:2px;" id="techSelectedPort">—</div>
+            </div>
+            <div class="form-group">
+              <label>Customer ID <span class="req">*</span></label>
+              <input type="text" id="techCustomerId" placeholder="e.g. JTL-00001" oninput="this.value=this.value.toUpperCase().trim()">
+              <div class="field-hint">Must match an entry in the provisioning database</div>
+            </div>
+            <div class="form-group">
+              <label>ONU Type <span class="req">*</span></label>
+              <select id="techOnuType">
+                <option value="">Select type…</option>
+                <option value="ZTEG-F660">ZTEG-F660</option>
+                <option value="ZTE-F660">ZTE-F660</option>
+                <option value="ZTE-F609">ZTE-F609</option>
+                <option value="ZTE-F680">ZTE-F680</option>
+                <option value="ZTE-F601">ZTE-F601</option>
+                <option value="HWTC-EG8245N">HWTC-EG8245N</option>
+                <option value="FTTM-F839">FTTM-F839</option>
+              </select>
+            </div>
+            <div id="techProvErr" class="alert alert-warn hidden"></div>
+            <button class="btn btn-primary btn-full" id="techProvBtn" onclick="doTechProvision()">Provision Customer</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- /tab-techprovision -->
+
+    <!-- ===== TAB: ADMIN — USER MANAGEMENT ===== -->
+    <div id="tab-adminusers" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div class="section-label" style="margin:0;">User Management</div>
+        <button class="btn btn-primary" onclick="openModal('createUserModal')">+ New User</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="user-row user-row-head">
+          <span>Username</span><span>Role</span><span>Email</span><span>Status</span><span>Last Ticket</span><span>Actions</span>
+        </div>
+        <div id="adminUserList"></div>
+      </div>
+    </div><!-- /tab-adminusers -->
+
   </div><!-- /main -->
 </div><!-- /layout -->
+
+<!-- WiFi Credentials Popup -->
+<div class="modal-overlay hidden" id="wifiPopupModal">
+  <div class="wifi-popup">
+    <div class="wifi-popup-title">✅ ONU Provisioned Successfully</div>
+    <div style="text-align:center;font-size:13px;color:var(--text-muted);" id="wifiPopupCustomer"></div>
+    <div class="wifi-grid">
+      <div class="wifi-item">
+        <div class="wifi-item-label">2.4 GHz SSID</div>
+        <div class="wifi-item-val" id="wifiSsid2g"></div>
+      </div>
+      <div class="wifi-item">
+        <div class="wifi-item-label">5 GHz SSID</div>
+        <div class="wifi-item-val" id="wifiSsid5g"></div>
+      </div>
+      <div class="wifi-pass-big">
+        <div class="wifi-item-label">WiFi Password (both bands)</div>
+        <div class="wifi-item-val" id="wifiPassword"></div>
+        <button class="copy-btn" style="margin-top:8px;" onclick="navigator.clipboard.writeText(document.getElementById('wifiPassword').textContent)">Copy</button>
+      </div>
+      <div class="wifi-item">
+        <div class="wifi-item-label">PPPoE Username</div>
+        <div class="wifi-item-val" id="wifiPppUser"></div>
+      </div>
+      <div class="wifi-item">
+        <div class="wifi-item-label">VLAN</div>
+        <div class="wifi-item-val" id="wifiVlan"></div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--accent);text-align:center;">WiFi credentials sent to customer via SMS &amp; email</div>
+    <button class="btn btn-primary btn-full" onclick="closeModal('wifiPopupModal');loadMyTickets();">Done</button>
+  </div>
+</div>
+
+<!-- Acknowledge Ticket Modal -->
+<div class="modal-overlay hidden" id="ackModal">
+  <div class="modal">
+    <div class="modal-title">Acknowledge Ticket</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;" id="ackModalTitle"></div>
+    <div class="form-group">
+      <label>Acknowledgement Notes <span class="req">*</span></label>
+      <textarea id="ackNotes" rows="3" placeholder="Describe what you found / first steps taken…" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:var(--radius);resize:vertical;font-size:13px;width:100%;"></textarea>
+    </div>
+    <div id="ackModalMsg" class="hidden" style="font-size:12px;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('ackModal')">Cancel</button>
+      <button class="btn btn-primary" id="ackSubmitBtn" onclick="submitAck()">Acknowledge</button>
+    </div>
+  </div>
+</div>
+
+<!-- Close Ticket Modal -->
+<div class="modal-overlay hidden" id="closeTicketModal">
+  <div class="modal">
+    <div class="modal-title">Close Ticket</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;" id="closeModalTitle"></div>
+    <div class="alert alert-info" style="font-size:12px;margin-bottom:4px;">System will verify ONU recovery via live OLT check before closing.</div>
+    <div class="form-group">
+      <label>Resolution Notes <span class="req">*</span></label>
+      <textarea id="closeNotes" rows="3" placeholder="Describe the action taken to resolve the issue…" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:var(--radius);resize:vertical;font-size:13px;width:100%;"></textarea>
+    </div>
+    <div id="closeModalMsg" class="hidden" style="font-size:12px;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('closeTicketModal')">Cancel</button>
+      <button class="btn btn-primary" id="closeSubmitBtn" onclick="submitCloseTicket()">Close Ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-overlay hidden" id="changePwModal">
+  <div class="modal">
+    <div class="modal-title">Change Password</div>
+    <div class="form-group"><label>Current Password</label><input type="password" id="cpCurrent" autocomplete="current-password"></div>
+    <div class="form-group"><label>New Password</label><input type="password" id="cpNew" placeholder="Min 8 characters" autocomplete="new-password"></div>
+    <div class="form-group"><label>Confirm New Password</label><input type="password" id="cpConfirm" autocomplete="new-password"></div>
+    <div id="cpMsg" class="hidden" style="font-size:12px;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('changePwModal')">Cancel</button>
+      <button class="btn btn-primary" id="cpSubmitBtn" onclick="submitChangePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create / Edit User Modal -->
+<div class="modal-overlay hidden" id="createUserModal">
+  <div class="modal" style="width:460px;">
+    <div class="modal-title" id="createUserTitle">Create User</div>
+    <input type="hidden" id="editUserId" value="">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="form-group"><label>Username <span class="req">*</span></label><input type="text" id="cuUsername"></div>
+      <div class="form-group"><label>Role <span class="req">*</span></label>
+        <select id="cuRole" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:var(--radius);width:100%;" onchange="toggleTechFields()">
+          <option value="admin">Admin</option>
+          <option value="technician">Technician</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Email</label><input type="email" id="cuEmail"></div>
+      <div class="form-group"><label>Password <span class="req">*</span></label><input type="password" id="cuPassword" placeholder="Min 8 chars"></div>
+    </div>
+    <div id="techFields">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Technician Details</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group"><label>Full Name</label><input type="text" id="cuTechName"></div>
+        <div class="form-group"><label>Phone</label><input type="text" id="cuPhone" placeholder="+254…"></div>
+        <div class="form-group"><label>Zone</label><input type="text" id="cuZone" placeholder="e.g. Nairobi"></div>
+      </div>
+    </div>
+    <div id="cuMsg" class="hidden" style="font-size:12px;padding:6px 10px;border-radius:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('createUserModal')">Cancel</button>
+      <button class="btn btn-primary" id="cuSubmitBtn" onclick="submitCreateUser()">Create User</button>
+    </div>
+  </div>
+</div>
 
 <!-- Assign Ticket Modal -->
 <div class="modal-overlay hidden" id="assignModal">
@@ -875,15 +1149,106 @@ function showTab(name, el) {
   if (name === 'manage') loadOnus();
 }
 
-// ──── API ────
+// ──── AUTH ────────────────────────────────────────────────────────────────────
+const _auth = {
+  token: localStorage.getItem('jtl_token'),
+  role:  localStorage.getItem('jtl_role'),
+  name:  localStorage.getItem('jtl_name'),
+  uid:   localStorage.getItem('jtl_uid'),
+  save(token, role, name, uid) {
+    this.token = token; this.role = role; this.name = name; this.uid = uid;
+    localStorage.setItem('jtl_token', token);
+    localStorage.setItem('jtl_role', role);
+    localStorage.setItem('jtl_name', name);
+    localStorage.setItem('jtl_uid', uid);
+  },
+  clear() {
+    this.token = this.role = this.name = this.uid = null;
+    ['jtl_token','jtl_role','jtl_name','jtl_uid'].forEach(k => localStorage.removeItem(k));
+  }
+};
+
+async function doLogin() {
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginErr');
+  const user = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!user || !pass) { errEl.textContent='Enter username and password'; errEl.classList.remove('hidden'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in…'; errEl.classList.add('hidden');
+  try {
+    const base = getApiBase();
+    const res = await fetch(`${base}/auth/login`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username: user, password: pass})
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.detail || 'Login failed');
+    _auth.save(data.access_token, data.role, data.name, data.user_id);
+    document.getElementById('loginOverlay').style.display = 'none';
+    initPortalAfterLogin();
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  } finally { btn.disabled = false; btn.textContent = 'Sign In'; }
+}
+
+function doLogout() {
+  _auth.clear();
+  document.getElementById('loginOverlay').style.display = 'flex';
+  document.getElementById('userBadge').style.display = 'none';
+}
+
+function initPortalAfterLogin() {
+  // Show user badge
+  document.getElementById('userNameDisplay').textContent = _auth.name;
+  const chip = document.getElementById('userRoleChip');
+  chip.textContent = _auth.role;
+  chip.className = `role-chip ${_auth.role}`;
+  document.getElementById('userBadge').style.display = 'flex';
+
+  const isAdmin = _auth.role === 'admin';
+  const isTech  = _auth.role === 'technician';
+
+  // Show/hide tabs by role
+  document.querySelectorAll('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
+  document.querySelectorAll('.tech-only').forEach(el => el.classList.toggle('hidden', !isTech));
+
+  if (isAdmin) {
+    // Activate first admin tab
+    const firstAdmin = document.getElementById('tabProvision');
+    showTab('provision', firstAdmin);
+    connectApi();
+    loadAdminUsers();
+  } else if (isTech) {
+    const firstTech = document.getElementById('tabMyTickets');
+    showTab('mytickets', firstTech);
+    loadMyTickets();
+    loadTechOlts();
+  }
+}
+
+// Init on page load — if token exists skip login
+window.addEventListener('load', () => {
+  if (_auth.token) {
+    document.getElementById('loginOverlay').style.display = 'none';
+    initPortalAfterLogin();
+  }
+});
+
+// ──── API ────────────────────────────────────────────────────────────────────
 function getApiBase() { return document.getElementById('apiUrl').value.replace(/\/$/, ''); }
 function getApiKey()  { return document.getElementById('apiKey').value; }
 
 async function apiFetch(path, opts = {}) {
-  const res = await fetch(getApiBase() + path, {
-    ...opts,
-    headers: { 'X-API-Key': getApiKey(), 'Content-Type': 'application/json', ...(opts.headers || {}) },
-  });
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  // Machine API paths use X-API-Key; portal JWT paths use Bearer
+  if (path.startsWith('/api/v1/tech') || path.startsWith('/api/v1/admin') || path.startsWith('/auth')) {
+    if (_auth.token) headers['Authorization'] = `Bearer ${_auth.token}`;
+  } else {
+    headers['X-API-Key'] = getApiKey();
+  }
+  const res = await fetch(getApiBase() + path, { ...opts, headers });
+  if (res.status === 401) { doLogout(); throw new Error('Session expired — please sign in again'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data?.detail || data?.error?.message || (typeof data?.error === 'string' ? data.error : null) || JSON.stringify(data));
   return data;
@@ -1987,6 +2352,268 @@ async function submitResolve() {
     _modalMsg('resolveModalMsg', e.message, false);
     btn.disabled = false; btn.innerHTML = 'Mark Resolved';
   }
+}
+
+// ──── CHANGE PASSWORD ────────────────────────────────────────────────────────
+async function submitChangePassword() {
+  const cur = document.getElementById('cpCurrent').value;
+  const nw  = document.getElementById('cpNew').value;
+  const cfm = document.getElementById('cpConfirm').value;
+  const msg = document.getElementById('cpMsg');
+  const btn = document.getElementById('cpSubmitBtn');
+  if (!cur || !nw || !cfm) return _modalMsg('cpMsg','All fields required',false);
+  if (nw !== cfm) return _modalMsg('cpMsg','Passwords do not match',false);
+  if (nw.length < 8) return _modalMsg('cpMsg','Min 8 characters',false);
+  btn.disabled=true; btn.textContent='Updating…';
+  try {
+    await apiFetch('/auth/change-password', { method:'POST', body:JSON.stringify({current_password:cur, new_password:nw}) });
+    _modalMsg('cpMsg','Password updated',true);
+    setTimeout(()=>{ closeModal('changePwModal'); ['cpCurrent','cpNew','cpConfirm'].forEach(id=>document.getElementById(id).value=''); },1400);
+  } catch(e) { _modalMsg('cpMsg',e.message,false); }
+  finally { btn.disabled=false; btn.textContent='Update Password'; }
+}
+
+// ──── MY TICKETS (technician) ─────────────────────────────────────────────────
+let _activeTicketId = null;
+
+async function loadMyTickets() {
+  const el = document.getElementById('myTicketList');
+  el.innerHTML = '<div class="card" style="text-align:center;padding:30px;color:var(--text-muted);"><span class="spinner"></span></div>';
+  try {
+    const tickets = await apiFetch('/api/v1/tech/tickets');
+    const badge = document.getElementById('myTicketBadge');
+    const active = tickets.filter(t => !['resolved','closed'].includes(t.status));
+    badge.textContent = active.length || '';
+    badge.style.display = active.length ? '' : 'none';
+    if (!tickets.length) { el.innerHTML='<div class="card" style="text-align:center;padding:40px;color:var(--text-muted);">No tickets assigned to you</div>'; return; }
+    el.innerHTML = tickets.map(t => `
+      <div class="ticket-card priority-${t.priority}" onclick="expandTicket(${t.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-weight:600;font-size:13px;">${t.title}</div>
+          <span class="ticket-status ${t.status}">${t.status.replace('_',' ')}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);">
+          Customer: <span style="color:var(--text);">${t.customer_id}</span>
+          &nbsp;·&nbsp; #${t.id}
+          &nbsp;·&nbsp; ${t.alarm_type ? t.alarm_type.toUpperCase().replace('_',' ') : 'N/A'}
+          ${t.onu_serial ? `&nbsp;·&nbsp; <span style="font-family:monospace;color:var(--yellow);">${t.onu_serial}</span>` : ''}
+        </div>
+        ${t.acknowledge_notes ? `<div style="font-size:11px;color:var(--purple);">Ack: ${t.acknowledge_notes}</div>` : ''}
+        <div style="display:flex;gap:8px;margin-top:4px;" id="ticketActions_${t.id}">
+          ${['open','assigned','in_progress'].includes(t.status) ? `<button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();openAck(${t.id},'${t.title}')">Acknowledge</button>` : ''}
+          ${['assigned','acknowledged','in_progress'].includes(t.status) ? `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();openCloseTicket(${t.id},'${t.title}')">Close Ticket</button>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML=`<div class="card" style="padding:20px;color:var(--red);">${e.message}</div>`; }
+}
+
+function expandTicket(id) { _activeTicketId = id; }
+
+function openAck(id, title) {
+  _activeTicketId = id;
+  document.getElementById('ackModalTitle').textContent = title;
+  document.getElementById('ackNotes').value = '';
+  document.getElementById('ackModalMsg').classList.add('hidden');
+  openModal('ackModal');
+}
+
+async function submitAck() {
+  const notes = document.getElementById('ackNotes').value.trim();
+  if (!notes) return _modalMsg('ackModalMsg','Notes required',false);
+  const btn = document.getElementById('ackSubmitBtn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    await apiFetch(`/api/v1/tech/tickets/${_activeTicketId}/acknowledge`, { method:'POST', body:JSON.stringify({notes}) });
+    _modalMsg('ackModalMsg','Acknowledged',true);
+    setTimeout(()=>{ closeModal('ackModal'); loadMyTickets(); },1000);
+  } catch(e) { _modalMsg('ackModalMsg',e.message,false); }
+  finally { btn.disabled=false; btn.textContent='Acknowledge'; }
+}
+
+function openCloseTicket(id, title) {
+  _activeTicketId = id;
+  document.getElementById('closeModalTitle').textContent = title;
+  document.getElementById('closeNotes').value = '';
+  document.getElementById('closeModalMsg').classList.add('hidden');
+  openModal('closeTicketModal');
+}
+
+async function submitCloseTicket() {
+  const notes = document.getElementById('closeNotes').value.trim();
+  if (!notes) return _modalMsg('closeModalMsg','Resolution notes required',false);
+  const btn = document.getElementById('closeSubmitBtn');
+  btn.disabled=true; btn.textContent='Verifying ONU…';
+  try {
+    await apiFetch(`/api/v1/tech/tickets/${_activeTicketId}/close`, { method:'POST', body:JSON.stringify({notes}) });
+    _modalMsg('closeModalMsg','Ticket closed — ONU confirmed recovered',true);
+    setTimeout(()=>{ closeModal('closeTicketModal'); loadMyTickets(); },1400);
+  } catch(e) { _modalMsg('closeModalMsg',e.message,false); }
+  finally { btn.disabled=false; btn.textContent='Close Ticket'; }
+}
+
+// ──── TECH PROVISIONING ───────────────────────────────────────────────────────
+let _techOnus = [];
+let _techSelectedOnu = null;
+
+async function loadTechOlts() {
+  try {
+    const olts = await apiFetch('/api/v1/tech/olts');
+    const sel = document.getElementById('techOltSelect');
+    sel.innerHTML = '<option value="">— Select OLT —</option>' + olts.map(o=>`<option value="${o.id}">${o.name} (${o.host})</option>`).join('');
+  } catch(e) {}
+}
+
+function techOltSelected() {
+  const id = document.getElementById('techOltSelect').value;
+  document.getElementById('techScanBtn').disabled = !id;
+  document.getElementById('techOnuListCard').style.display = 'none';
+  document.getElementById('techProvForm').style.display = 'none';
+  _techSelectedOnu = null;
+}
+
+async function scanUnregistered() {
+  const olt_id = document.getElementById('techOltSelect').value;
+  if (!olt_id) return;
+  const btn = document.getElementById('techScanBtn');
+  btn.disabled=true; btn.textContent='Scanning…';
+  try {
+    _techOnus = await apiFetch(`/api/v1/tech/olts/${olt_id}/unregistered`);
+    renderTechOnus(_techOnus);
+    document.getElementById('techOnuListCard').style.display = '';
+  } catch(e) { alert('Scan failed: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='🔍 Scan Unregistered ONUs'; }
+}
+
+function renderTechOnus(onus) {
+  const el = document.getElementById('techOnuList');
+  if (!onus.length) { el.innerHTML='<div style="color:var(--text-muted);padding:12px;font-size:13px;">No unregistered ONUs found</div>'; return; }
+  el.innerHTML = `
+    <div class="onu-pick-row" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;cursor:default;">
+      <span>Frame</span><span>Slot</span><span>Port</span><span>Serial</span><span></span>
+    </div>` +
+    onus.map((o,i)=>`
+    <div class="onu-pick-row" id="techOnuRow_${i}" onclick="techSelectOnu(${i})">
+      <span>${o.frame}</span><span>${o.slot}</span><span>${o.port}</span>
+      <span style="font-family:monospace;color:var(--yellow);">${o.serial_number}</span>
+      <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();techSelectOnu(${i})">Select</button>
+    </div>`).join('');
+}
+
+function filterTechOnus(q) {
+  const filtered = q ? _techOnus.filter(o=>o.serial_number.toLowerCase().includes(q.toLowerCase())) : _techOnus;
+  renderTechOnus(filtered);
+}
+
+function techSelectOnu(i) {
+  document.querySelectorAll('.onu-pick-row').forEach(r=>r.classList.remove('selected'));
+  document.getElementById(`techOnuRow_${i}`)?.classList.add('selected');
+  _techSelectedOnu = _techOnus[i];
+  document.getElementById('techSelectedSerial').textContent = _techSelectedOnu.serial_number;
+  document.getElementById('techSelectedPort').textContent = `Port: ${_techSelectedOnu.frame}/${_techSelectedOnu.slot}/${_techSelectedOnu.port}`;
+  document.getElementById('techProvForm').style.display = '';
+  document.getElementById('techProvErr').classList.add('hidden');
+}
+
+async function doTechProvision() {
+  if (!_techSelectedOnu) return alert('Select an ONU first');
+  const customer_id = document.getElementById('techCustomerId').value.trim().toUpperCase();
+  const onu_type = document.getElementById('techOnuType').value;
+  const errEl = document.getElementById('techProvErr');
+  const btn = document.getElementById('techProvBtn');
+  if (!customer_id) { errEl.textContent='Customer ID required'; errEl.classList.remove('hidden'); return; }
+  if (!onu_type) { errEl.textContent='ONU type required'; errEl.classList.remove('hidden'); return; }
+  errEl.classList.add('hidden');
+  btn.disabled=true; btn.textContent='Provisioning…';
+  try {
+    const olt_id = parseInt(document.getElementById('techOltSelect').value);
+    const result = await apiFetch('/api/v1/tech/provision', {
+      method:'POST',
+      body: JSON.stringify({
+        olt_id, serial_number: _techSelectedOnu.serial_number,
+        onu_type, customer_id,
+        frame: _techSelectedOnu.frame, slot: _techSelectedOnu.slot, port: _techSelectedOnu.port,
+      })
+    });
+    // Show WiFi popup
+    document.getElementById('wifiPopupCustomer').textContent = `${result.full_name} — ${result.customer_id} — ${result.olt_name} ${result.onu_location}`;
+    document.getElementById('wifiSsid2g').textContent = result.wifi_ssid_2g;
+    document.getElementById('wifiSsid5g').textContent = result.wifi_ssid_5g;
+    document.getElementById('wifiPassword').textContent = result.wifi_password;
+    document.getElementById('wifiPppUser').textContent = result.pppoe_username;
+    document.getElementById('wifiVlan').textContent = result.vlan_id;
+    openModal('wifiPopupModal');
+    // Reset form
+    document.getElementById('techCustomerId').value = '';
+    document.getElementById('techOnuType').value = '';
+    document.getElementById('techProvForm').style.display = 'none';
+    document.getElementById('techOnuListCard').style.display = 'none';
+    _techSelectedOnu = null; _techOnus = [];
+  } catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+  finally { btn.disabled=false; btn.textContent='Provision Customer'; }
+}
+
+// ──── ADMIN USER MANAGEMENT ───────────────────────────────────────────────────
+async function loadAdminUsers() {
+  const el = document.getElementById('adminUserList');
+  if (!el) return;
+  el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);"><span class="spinner"></span></div>';
+  try {
+    const users = await apiFetch('/api/v1/admin/users');
+    if (!users.length) { el.innerHTML='<div style="padding:20px;color:var(--text-muted);">No users found</div>'; return; }
+    el.innerHTML = users.map(u => `
+      <div class="user-row" style="border-bottom:1px solid var(--border);">
+        <span style="font-weight:500;">${u.username}</span>
+        <span class="role-chip ${u.role}" style="font-size:10px;">${u.role}</span>
+        <span style="color:var(--text-muted);font-size:12px;">${u.email||'—'}</span>
+        <span style="font-size:12px;color:${u.active?'var(--accent)':'var(--red)'};">${u.active?'Active':'Inactive'}</span>
+        <span style="font-size:11px;color:var(--text-muted);">${u.last_ticket_at ? u.last_ticket_at.slice(0,10) : '—'}</span>
+        <span style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-ghost" onclick="adminResetPw(${u.id},'${u.username}')">Reset PW</button>
+          <button class="btn btn-sm btn-ghost" style="color:${u.active?'var(--red)':'var(--accent)'};" onclick="adminToggleUser(${u.id},${u.active})">${u.active?'Deactivate':'Activate'}</button>
+        </span>
+      </div>`).join('');
+  } catch(e) { el.innerHTML=`<div style="padding:20px;color:var(--red);">${e.message}</div>`; }
+}
+
+function toggleTechFields() {
+  const role = document.getElementById('cuRole').value;
+  document.getElementById('techFields').style.display = role === 'technician' ? '' : 'none';
+}
+
+async function submitCreateUser() {
+  const btn = document.getElementById('cuSubmitBtn');
+  const username = document.getElementById('cuUsername').value.trim();
+  const role     = document.getElementById('cuRole').value;
+  const email    = document.getElementById('cuEmail').value.trim() || null;
+  const password = document.getElementById('cuPassword').value;
+  const tech_name = document.getElementById('cuTechName').value.trim() || null;
+  const phone    = document.getElementById('cuPhone').value.trim() || null;
+  const zone     = document.getElementById('cuZone').value.trim() || null;
+  if (!username || !role || !password) return _modalMsg('cuMsg','Username, role and password required',false);
+  if (password.length < 8) return _modalMsg('cuMsg','Password min 8 chars',false);
+  btn.disabled=true; btn.textContent='Creating…';
+  try {
+    await apiFetch('/api/v1/admin/users', { method:'POST', body:JSON.stringify({username,role,email,password,tech_name,tech_phone:phone,tech_zone:zone}) });
+    _modalMsg('cuMsg','User created',true);
+    setTimeout(()=>{ closeModal('createUserModal'); loadAdminUsers(); },1000);
+  } catch(e) { _modalMsg('cuMsg',e.message,false); }
+  finally { btn.disabled=false; btn.textContent='Create User'; }
+}
+
+async function adminResetPw(uid, uname) {
+  const pw = prompt(`New password for ${uname} (min 8 chars):`);
+  if (!pw || pw.length < 8) return;
+  try {
+    await apiFetch(`/api/v1/admin/users/${uid}/reset-password`, { method:'POST', body:JSON.stringify({new_password:pw}) });
+    alert('Password reset successfully');
+  } catch(e) { alert('Error: '+e.message); }
+}
+
+async function adminToggleUser(uid, currentActive) {
+  try {
+    await apiFetch(`/api/v1/admin/users/${uid}`, { method:'PUT', body:JSON.stringify({active: !currentActive}) });
+    loadAdminUsers();
+  } catch(e) { alert('Error: '+e.message); }
 }
 
 // Auto-refresh alarms badge every 60s regardless of active tab

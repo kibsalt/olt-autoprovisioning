@@ -24,11 +24,12 @@ class AlarmStatus(str, enum.Enum):
 
 
 class TicketStatus(str, enum.Enum):
-    OPEN        = "open"
-    ASSIGNED    = "assigned"
-    IN_PROGRESS = "in_progress"
-    RESOLVED    = "resolved"
-    CLOSED      = "closed"
+    OPEN         = "open"
+    ASSIGNED     = "assigned"
+    IN_PROGRESS  = "in_progress"
+    ACKNOWLEDGED = "acknowledged"
+    RESOLVED     = "resolved"
+    CLOSED       = "closed"
 
 
 class TicketPriority(str, enum.Enum):
@@ -54,7 +55,8 @@ class Alarm(Base, TimestampMixin):
     __tablename__ = "alarms"
 
     id:          Mapped[int]         = mapped_column(Integer, primary_key=True, autoincrement=True)
-    onu_id:      Mapped[int]         = mapped_column(Integer, ForeignKey("onus.id", ondelete="CASCADE"), nullable=False)
+    onu_id:      Mapped[int|None]    = mapped_column(Integer, ForeignKey("onus.id", ondelete="SET NULL"), nullable=True)
+    serial_number: Mapped[str|None] = mapped_column(String(16), nullable=True)
     alarm_type:  Mapped[AlarmType]   = mapped_column(Enum(AlarmType,   values_callable=lambda x: [e.value for e in x]), nullable=False)
     severity:    Mapped[AlarmSeverity] = mapped_column(Enum(AlarmSeverity, values_callable=lambda x: [e.value for e in x]), nullable=False)
     status:      Mapped[AlarmStatus] = mapped_column(Enum(AlarmStatus,  values_callable=lambda x: [e.value for e in x]), nullable=False, default=AlarmStatus.ACTIVE)
@@ -63,7 +65,7 @@ class Alarm(Base, TimestampMixin):
     resolved_at: Mapped[datetime|None] = mapped_column(DateTime, nullable=True)
     notes:       Mapped[str|None]    = mapped_column(Text, nullable=True)
 
-    onu:    Mapped["ONU"]          = relationship("ONU")
+    onu:    Mapped["ONU|None"]     = relationship("ONU")
     ticket: Mapped["Ticket|None"]  = relationship("Ticket", back_populates="alarm", uselist=False)
 
 
@@ -72,7 +74,7 @@ class Ticket(Base, TimestampMixin):
 
     id:               Mapped[int]            = mapped_column(Integer, primary_key=True, autoincrement=True)
     alarm_id:         Mapped[int|None]       = mapped_column(Integer, ForeignKey("alarms.id", ondelete="SET NULL"), nullable=True)
-    onu_id:           Mapped[int]            = mapped_column(Integer, ForeignKey("onus.id", ondelete="CASCADE"), nullable=False)
+    onu_id:           Mapped[int|None]       = mapped_column(Integer, ForeignKey("onus.id", ondelete="SET NULL"), nullable=True)
     customer_id:      Mapped[str]            = mapped_column(String(255), nullable=False)
     title:            Mapped[str]            = mapped_column(String(500), nullable=False)
     description:      Mapped[str|None]       = mapped_column(Text, nullable=True)
@@ -80,9 +82,11 @@ class Ticket(Base, TimestampMixin):
     priority:         Mapped[TicketPriority] = mapped_column(Enum(TicketPriority, values_callable=lambda x: [e.value for e in x]), nullable=False, default=TicketPriority.HIGH)
     assigned_to:      Mapped[int|None]       = mapped_column(Integer, ForeignKey("technicians.id", ondelete="SET NULL"), nullable=True)
     assigned_at:      Mapped[datetime|None]  = mapped_column(DateTime, nullable=True)
-    resolved_at:      Mapped[datetime|None]  = mapped_column(DateTime, nullable=True)
-    resolution_notes: Mapped[str|None]       = mapped_column(Text, nullable=True)
+    resolved_at:        Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resolution_notes:   Mapped[str | None]     = mapped_column(Text, nullable=True)
+    acknowledge_notes:  Mapped[str | None]     = mapped_column(Text, nullable=True)
+    acknowledged_at:    Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     alarm:      Mapped["Alarm|None"]      = relationship("Alarm", back_populates="ticket")
-    onu:        Mapped["ONU"]             = relationship("ONU")
+    onu:        Mapped["ONU|None"]        = relationship("ONU")
     technician: Mapped["Technician|None"] = relationship("Technician", back_populates="tickets")

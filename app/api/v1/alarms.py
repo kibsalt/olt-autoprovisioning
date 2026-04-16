@@ -18,7 +18,7 @@ def _fmt_alarm(a) -> dict:
     return AlarmResponse(
         id=a.id,
         onu_id=a.onu_id,
-        serial_number=onu.serial_number if onu else "?",
+        serial_number=(onu.serial_number if onu else None) or a.serial_number or "?",
         customer_id=onu.customer_id if onu else "?",
         olt_name=onu.olt.name if (onu and onu.olt) else "?",
         port=f"{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}" if onu else "?",

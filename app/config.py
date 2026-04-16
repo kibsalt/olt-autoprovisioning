@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     at_sender_id: str = "JTL"
     at_whatsapp_sender: str = ""
 
+    # JWT authentication
+    jwt_secret: str = "change-this-secret-in-production"
+    jwt_expire_hours: int = 8
+
     # WiFi SSID prefix
     wifi_ssid_prefix: str = "JTL"
 

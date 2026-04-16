@@ -10,7 +10,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.middleware import RequestContextMiddleware
-from app.api.router import api_router
+from app.api.router import api_router, portal_router
+from app.api.v1.auth import router as auth_router
 from app.config import settings
 from app.db.session import engine
 from app.dependencies import verify_api_key
@@ -67,19 +68,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(RequestContextMiddleware)
+
+# ── Machine-to-machine API (X-API-Key required) ────────────────────────────
 app.include_router(
     api_router,
     prefix="/api/v1",
     dependencies=[Depends(verify_api_key)],
 )
+
+# ── BSS provisioning (X-API-Key required) ──────────────────────────────────
 from app.api.bss.provision import router as bss_router
 app.include_router(
     bss_router,
     dependencies=[Depends(verify_api_key)],
 )
 
+# ── Auth endpoints (no X-API-Key — JWT only) ───────────────────────────────
+app.include_router(auth_router)
 
-# --- Error Handlers ---
+# ── Portal JWT endpoints (no X-API-Key — JWT auth handled per-endpoint) ───
+app.include_router(portal_router, prefix="/api/v1")
+
+
+# ── Error Handlers ─────────────────────────────────────────────────────────
 
 
 @app.exception_handler(OLTConnectionError)
@@ -117,6 +128,15 @@ async def onu_not_found_error_handler(request: Request, exc: ONUNotFoundError):
     )
 
 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.error("unhandled_exception", error=str(exc), exc_type=type(exc).__name__)
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error": {"code": "INTERNAL_ERROR", "message": str(exc)}},
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
@@ -137,7 +157,7 @@ async def health_check():
     return {"status": "ok"}
 
 
-# ── BSS Portal (static HTML) ──────────────────────────────────────────────────
+# ── BSS Portal (static HTML) ─────────────────────────────────────────────────
 _DOCS_DIR = Path(__file__).parent.parent / "docs"
 if _DOCS_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(_DOCS_DIR)), name="static")

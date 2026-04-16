@@ -31,29 +31,33 @@ class OLTDriverPool:
                 logger.info("driver_pool_stale", olt_id=olt.id, olt_name=olt.name)
                 await self._remove_driver(olt.id)
 
-            ssh = OLTSSHClient(
-                host=olt.host,
-                port=olt.ssh_port,
-                username=decrypt(olt.ssh_username),
-                password=decrypt(olt.ssh_password),
-                enable_password=decrypt(olt.enable_password) if olt.enable_password else None,
-                connect_timeout=settings.ssh_connect_timeout,
-                command_timeout=settings.ssh_command_timeout,
-            )
-
-            if olt.platform == OLTPlatform.TITAN:
-                driver = TITANDriver(ssh)
-            else:
-                driver = ZXANDriver(ssh, model=olt.model.value)
-            await driver.connect()
+            driver = await self._create_driver(olt)
             self._drivers[olt.id] = driver
-            logger.info(
-                "driver_pool_connected",
-                olt_id=olt.id,
-                olt_name=olt.name,
-                platform=olt.platform.value,
-            )
             return driver
+
+    async def _create_driver(self, olt: OLT) -> "BaseOLTDriver":
+        ssh = OLTSSHClient(
+            host=olt.host,
+            port=olt.ssh_port,
+            username=decrypt(olt.ssh_username),
+            password=decrypt(olt.ssh_password),
+            enable_password=decrypt(olt.enable_password) if olt.enable_password else None,
+            connect_timeout=settings.ssh_connect_timeout,
+            command_timeout=settings.ssh_command_timeout,
+        )
+
+        if olt.platform == OLTPlatform.TITAN:
+            driver = TITANDriver(ssh)
+        else:
+            driver = ZXANDriver(ssh, model=olt.model.value)
+        await driver.connect()
+        logger.info(
+            "driver_pool_connected",
+            olt_id=olt.id,
+            olt_name=olt.name,
+            platform=olt.platform.value,
+        )
+        return driver
 
     async def release_driver(self, olt_id: int) -> None:
         async with self._lock:

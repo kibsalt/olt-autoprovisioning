@@ -12,6 +12,7 @@ from app.models.alarm import (
 )
 from app.models.onu import ONU
 from app.models.olt import OLT
+from app.models.user import User, UserRole
 from app.notifications.email_service import send_email
 from app.notifications.sms_service import send_sms
 
@@ -61,6 +62,7 @@ async def create_alarm_and_ticket(
     now = _now()
     alarm = Alarm(
         onu_id=onu.id,
+        serial_number=onu.serial_number,
         alarm_type=alarm_type,
         severity=severity,
         status=AlarmStatus.ACTIVE,
@@ -92,17 +94,35 @@ async def create_alarm_and_ticket(
         )
         priority = TicketPriority.HIGH if severity == AlarmSeverity.CRITICAL else TicketPriority.MEDIUM
 
+    # Round-robin: assign to technician User with oldest last_ticket_at (null = highest priority)
+    assigned_tech_id: int | None = None
+    assigned_user: User | None = await _pick_next_technician(db)
+
+    ticket_status = TicketStatus.OPEN
+    assigned_at: datetime | None = None
+    if assigned_user and assigned_user.technician_id:
+        assigned_tech_id = assigned_user.technician_id
+        ticket_status = TicketStatus.ASSIGNED
+        assigned_at = now
+
     ticket = Ticket(
         alarm_id=alarm.id,
         onu_id=onu.id,
         customer_id=onu.customer_id,
         title=title,
         description=description,
-        status=TicketStatus.OPEN,
+        status=ticket_status,
         priority=priority,
+        assigned_to=assigned_tech_id,
+        assigned_at=assigned_at,
     )
     db.add(ticket)
     await db.flush()
+
+    # Update round-robin timestamp on the assigned user
+    if assigned_user:
+        assigned_user.last_ticket_at = now
+        await db.flush()
 
     logger.info(
         "alarm_created",
@@ -111,11 +131,27 @@ async def create_alarm_and_ticket(
         serial=onu.serial_number,
         alarm_type=alarm_type,
         severity=severity,
+        assigned_to=assigned_tech_id,
     )
 
-    # Dispatch notifications to all active technicians
-    await _dispatch_alarm_notifications(db, alarm, ticket, onu)
+    # Dispatch notifications — only to assigned technician (or all if none assigned)
+    await _dispatch_alarm_notifications(db, alarm, ticket, onu, assigned_tech_id)
     return alarm, ticket
+
+
+async def _pick_next_technician(db: AsyncSession) -> "User | None":
+    """Round-robin: return active technician User with oldest last_ticket_at (nulls first)."""
+    result = await db.execute(
+        select(User)
+        .where(
+            User.role == UserRole.TECHNICIAN,
+            User.active == True,
+            User.technician_id.is_not(None),
+        )
+        .order_by(User.last_ticket_at.asc().nullsfirst())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def resolve_alarm(db: AsyncSession, alarm: Alarm) -> None:
@@ -131,18 +167,40 @@ async def resolve_alarm(db: AsyncSession, alarm: Alarm) -> None:
 
 
 async def _dispatch_alarm_notifications(
-    db: AsyncSession, alarm: Alarm, ticket: Ticket, onu: ONU
+    db: AsyncSession,
+    alarm: Alarm,
+    ticket: Ticket,
+    onu: ONU,
+    assigned_tech_id: int | None = None,
 ) -> None:
-    result = await db.execute(
-        select(Technician).where(Technician.active == True)
-    )
-    technicians = result.scalars().all()
+    """Notify the assigned technician (or all active technicians if none assigned)."""
+    if assigned_tech_id:
+        result = await db.execute(
+            select(Technician).where(
+                Technician.id == assigned_tech_id,
+                Technician.active == True,
+            )
+        )
+        technicians = result.scalars().all()
+    else:
+        result = await db.execute(
+            select(Technician).where(Technician.active == True)
+        )
+        technicians = result.scalars().all()
+
     if not technicians:
         logger.warning("no_active_technicians_to_notify", alarm_id=alarm.id)
         return
 
     alarm_label = "LOSS OF SIGNAL (LOS)" if alarm.alarm_type == AlarmType.LOS else f"LOW Rx POWER ({alarm.rx_power} dBm)"
     sms_body = (
+        f"[JTL ALARM] {alarm_label}\n"
+        f"ONU: {onu.serial_number}\n"
+        f"Customer: {onu.customer_id}\n"
+        f"Port: {onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}\n"
+        f"Ticket #{ticket.id} assigned to you. Please respond."
+        if assigned_tech_id
+        else
         f"[JTL ALARM] {alarm_label}\n"
         f"ONU: {onu.serial_number}\n"
         f"Customer: {onu.customer_id}\n"
@@ -164,7 +222,10 @@ async def _dispatch_alarm_notifications(
 async def list_alarms(
     db: AsyncSession, status: AlarmStatus | None = None, limit: int = 100
 ) -> list[Alarm]:
-    q = select(Alarm).options(selectinload(Alarm.onu), selectinload(Alarm.ticket))
+    q = select(Alarm).options(
+        selectinload(Alarm.onu).selectinload(ONU.olt),
+        selectinload(Alarm.ticket),
+    )
     if status:
         q = q.where(Alarm.status == status)
     q = q.order_by(Alarm.detected_at.desc()).limit(limit)
@@ -195,7 +256,13 @@ async def assign_ticket(
     db: AsyncSession, ticket_id: int, technician_id: int, notes: str | None
 ) -> Ticket:
     result = await db.execute(
-        select(Ticket).options(selectinload(Ticket.technician)).where(Ticket.id == ticket_id)
+        select(Ticket)
+        .options(
+            selectinload(Ticket.technician),
+            selectinload(Ticket.onu).selectinload(ONU.olt),
+            selectinload(Ticket.alarm),
+        )
+        .where(Ticket.id == ticket_id)
     )
     ticket = result.scalar_one_or_none()
     if not ticket:
@@ -229,15 +296,30 @@ async def assign_ticket(
         )
 
     logger.info("ticket_assigned", ticket_id=ticket.id, technician_id=technician_id)
-    await db.refresh(ticket)
-    return ticket
+    # Re-query to get updated technician relationship after assignment
+    result = await db.execute(
+        select(Ticket)
+        .options(
+            selectinload(Ticket.technician),
+            selectinload(Ticket.onu).selectinload(ONU.olt),
+            selectinload(Ticket.alarm),
+        )
+        .where(Ticket.id == ticket_id)
+    )
+    return result.scalar_one()
 
 
 async def resolve_ticket(
     db: AsyncSession, ticket_id: int, resolution_notes: str
 ) -> Ticket:
     result = await db.execute(
-        select(Ticket).options(selectinload(Ticket.alarm)).where(Ticket.id == ticket_id)
+        select(Ticket)
+        .options(
+            selectinload(Ticket.alarm),
+            selectinload(Ticket.onu).selectinload(ONU.olt),
+            selectinload(Ticket.technician),
+        )
+        .where(Ticket.id == ticket_id)
     )
     ticket = result.scalar_one_or_none()
     if not ticket:
@@ -256,8 +338,16 @@ async def resolve_ticket(
 
     await db.flush()
     logger.info("ticket_resolved", ticket_id=ticket.id)
-    await db.refresh(ticket)
-    return ticket
+    result = await db.execute(
+        select(Ticket)
+        .options(
+            selectinload(Ticket.alarm),
+            selectinload(Ticket.onu).selectinload(ONU.olt),
+            selectinload(Ticket.technician),
+        )
+        .where(Ticket.id == ticket_id)
+    )
+    return result.scalar_one()
 
 
 async def list_technicians(db: AsyncSession) -> list[Technician]:

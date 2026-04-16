@@ -21,7 +21,7 @@ def _get_driver_pool(request: Request) -> OLTDriverPool:
 async def list_onus(
     olt_id: int,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
     onus, total = await onu_service.list_onus(db, olt_id, page, page_size)
@@ -114,6 +114,31 @@ async def find_onus_by_customer(
         success=True,
         data=[ONUResponse.model_validate(o) for o in onus],
     )
+
+
+@router.get("/olts/{olt_id}/onus/{onu_id}/olt-config", response_model=APIResponse[dict])
+async def get_onu_olt_config(
+    olt_id: int,
+    onu_id: int,
+    db: AsyncSession = Depends(get_db),
+    driver_pool: OLTDriverPool = Depends(_get_driver_pool),
+):
+    """Retrieve live ONU config from OLT: interface running-config, pon-onu-mng, status, optical, WAN."""
+    result = await onu_service.get_olt_config(db, driver_pool, olt_id, onu_id)
+    return APIResponse(success=True, data=result)
+
+
+@router.post("/olts/{olt_id}/onus/{onu_id}/reprovision", response_model=APIResponse[dict])
+async def reprovision_onu(
+    olt_id: int,
+    onu_id: int,
+    db: AsyncSession = Depends(get_db),
+    driver_pool: OLTDriverPool = Depends(_get_driver_pool),
+):
+    """Re-push all OLT config (tcont, gemport, service-port, OMCI) for an existing ONU.
+    Use when an ONU was offline during provisioning or needs a full config restore."""
+    result = await onu_service.reprovision_onu(db, driver_pool, olt_id, onu_id)
+    return APIResponse(success=True, data=result)
 
 
 @router.put("/olts/{olt_id}/onus/{onu_id}/pppoe", response_model=APIResponse[dict])

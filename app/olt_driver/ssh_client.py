@@ -32,16 +32,30 @@ _WONT = 0xFC
 _WILL = 0xFB
 _SB   = 0xFA   # subnegotiation begin
 _SE   = 0xF0   # subnegotiation end
+_NAWS = 0x1F   # option: Negotiate About Window Size
+_TTYPE = 0x18  # option: Terminal Type
+
+# Tell the OLT our terminal is 200 columns wide so long commands aren't wrapped.
+# IAC WILL NAWS + IAC SB NAWS <width_hi> <width_lo> <height_hi> <height_lo> IAC SE
+_NAWS_ANNOUNCE = (
+    bytes([_IAC, _WILL, _NAWS]) +
+    bytes([_IAC, _SB, _NAWS, 0x00, 200, 0x00, 50, _IAC, _SE])
+)
 
 
 def _respond_iac(data: bytes) -> bytes:
-    """Generate WONT/DONT replies for all incoming DO/WILL Telnet negotiations."""
+    """Generate WONT/DONT replies for all incoming DO/WILL Telnet negotiations.
+    Exception: accept DO NAWS by sending our window size subnegotiation."""
     resp = bytearray()
     i = 0
     while i < len(data):
         if data[i] == _IAC and i + 2 < len(data):
             cmd, opt = data[i + 1], data[i + 2]
-            if cmd == _DO:
+            if cmd == _DO and opt == _NAWS:
+                # Server wants to know our window size — send WILL NAWS + size
+                resp += bytes([_IAC, _WILL, _NAWS])
+                resp += bytes([_IAC, _SB, _NAWS, 0x00, 200, 0x00, 50, _IAC, _SE])
+            elif cmd == _DO:
                 resp += bytes([_IAC, _WONT, opt])
             elif cmd == _WILL:
                 resp += bytes([_IAC, _DONT, opt])
@@ -77,6 +91,33 @@ def _strip_iac(data: bytes) -> bytes:
             out.append(b)
             i += 1
     return bytes(out)
+
+
+def _clean_telnet_output(text: str) -> str:
+    """Remove backspace sequences and reflow artifacts from Telnet echo.
+
+    ZTE OLTs in Telnet mode echo commands back with \x08 (backspace) sequences
+    that split long lines — e.g. 'show running-config inter\x08\x08...' — which
+    corrupt the output and falsely match error patterns.  Strip all backspace
+    processing so only the actual OLT response remains.
+    """
+    # Remove any \x08-based line reflow: process backspaces character by character
+    result = []
+    for ch in text:
+        if ch == '\x08':
+            if result:
+                result.pop()
+        else:
+            result.append(ch)
+    cleaned = ''.join(result)
+    # Also strip lines that are purely the echoed command (contain no newline content)
+    lines = cleaned.split('\n')
+    out_lines = []
+    for line in lines:
+        # Drop lines that still contain raw backspace or are pure whitespace artifacts
+        if '\x08' not in line:
+            out_lines.append(line)
+    return '\n'.join(out_lines)
 
 
 class OLTSSHClient:
@@ -143,7 +184,7 @@ class OLTSSHClient:
             except (OLTCommandError, OLTConnectionError):
                 pass
 
-            logger.info("ssh_connected", host=self.host, port=self.port)
+            logger.info("telnet_connected", host=self.host, port=self.port)
 
         except Exception as e:
             await self.disconnect()
@@ -162,6 +203,9 @@ class OLTSSHClient:
             neg_resp = _respond_iac(raw)
             if neg_resp:
                 self._writer.write(neg_resp)
+            else:
+                # Proactively announce our window size so the OLT doesn't wrap long commands
+                self._writer.write(_NAWS_ANNOUNCE)
             buf = _strip_iac(raw).decode("ascii", errors="replace")
         except asyncio.TimeoutError:
             pass
@@ -207,7 +251,7 @@ class OLTSSHClient:
             self._writer = None
         self._reader = None
         self._connected = False
-        logger.info("ssh_disconnected", host=self.host)
+        logger.info("telnet_disconnected", host=self.host)
 
     # ------------------------------------------------------------------
     # Privileged mode
@@ -235,7 +279,11 @@ class OLTSSHClient:
     def _write(self, text: str) -> None:
         if not self._writer:
             raise OLTConnectionError("Not connected to OLT")
-        self._writer.write(text.encode("ascii", errors="replace"))
+        try:
+            self._writer.write(text.encode("ascii", errors="replace"))
+        except (BrokenPipeError, OSError, RuntimeError) as e:
+            self._connected = False
+            raise OLTConnectionError(f"Telnet connection lost on {self.host}: {e}") from e
 
     async def execute(self, command: str, timeout: float | None = None) -> str:
         if not self._connected or not self._writer:
@@ -252,15 +300,21 @@ class OLTSSHClient:
 
             output = await self._read_until_prompt(timeout=timeout)
 
+            # Clean Telnet echo artifacts (backspace sequences from OLT line reflow)
+            output = _clean_telnet_output(output)
+
             # Strip command echo
             lines = output.split("\n")
             if lines and command.strip() in lines[0]:
                 lines = lines[1:]
             result = "\n".join(lines).strip()
 
-            # Check for errors
+            # Check for errors — only in lines that don't contain the echoed command
+            clean_for_errors = "\n".join(
+                l for l in result.split("\n") if command[:20] not in l
+            )
             for pattern in ERROR_PATTERNS:
-                if re.search(pattern, result):
+                if re.search(pattern, clean_for_errors):
                     raise OLTCommandError(
                         f"OLT command error: {result}",
                         command=command,
@@ -270,12 +324,14 @@ class OLTSSHClient:
             logger.debug("ssh_response", host=self.host, output=result[:200])
             return result
 
-    async def execute_config_mode(self, commands: list[str]) -> list[str]:
+    async def execute_config_mode(
+        self, commands: list[str], cmd_timeout: float | None = None
+    ) -> list[str]:
         results = []
         await self.execute("configure terminal")
         try:
             for cmd in commands:
-                result = await self.execute(cmd)
+                result = await self.execute(cmd, timeout=cmd_timeout)
                 results.append(result)
         finally:
             try:
@@ -345,7 +401,13 @@ class OLTSSHClient:
 
     @property
     def is_connected(self) -> bool:
-        return self._connected
+        if not self._connected:
+            return False
+        # Check if the underlying TCP transport is still alive
+        if self._writer is None or self._writer.is_closing():
+            self._connected = False
+            return False
+        return True
 
     async def __aenter__(self):
         await self.connect()
