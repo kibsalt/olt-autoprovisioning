@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#00c853">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="JTL Tech">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <title>JTL BSS — ONU Provisioning Portal</title>
 <style>
   :root {
@@ -304,9 +311,161 @@
   .user-row-head { font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-bottom:1px solid var(--border); }
 
   /* TECH PROVISION */
-  .onu-pick-row { display:grid;grid-template-columns:80px 80px 80px 1fr auto;gap:8px;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:13px;cursor:pointer;transition:background .15s; }
+  .onu-pick-row { display:grid;grid-template-columns:44px 44px 44px minmax(130px,1fr) auto;gap:6px;align-items:center;padding:8px 10px;background:var(--surface2);border-radius:6px;font-size:13px;cursor:pointer;transition:background .15s; }
+  .onu-pick-row .sn-col { font-family:monospace;color:var(--yellow);overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
   .onu-pick-row:hover { background:#1a2e1a; }
   .onu-pick-row.selected { background:#0d2a0d;border:1px solid var(--accent); }
+
+  /* ── Small button variant ── */
+  .btn-sm { min-height: 32px; padding: 5px 10px; font-size: 12px; }
+
+  /* ── Mobile bottom nav (tech only, hidden by default) ── */
+  .mob-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 150;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .mob-nav-inner { display: flex; height: 100%; }
+  .mob-nav-btn {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-family: inherit;
+    transition: color .15s; padding: 6px 0;
+  }
+  .mob-nav-btn.active { color: var(--accent); }
+  .mob-nav-icon { font-size: 20px; line-height: 1; }
+  .mob-nav-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  /* ── Mobile / PWA ─────────────────────────────────────── */
+  /* Prevent iOS auto-zoom on input focus (requires font-size ≥ 16px) */
+  @media (max-width: 768px) {
+    input, select, textarea { font-size: 16px !important; }
+  }
+
+  @media (max-width: 768px) {
+    /* Layout */
+    .layout { grid-template-columns: 1fr !important; }
+    #mainSidebar { display: none !important; }
+    .main {
+      padding: 10px 10px 72px; /* bottom pad clears fixed mob-nav */
+      min-height: calc(100vh - 52px);
+    }
+
+    /* Topbar — strip it down */
+    .topbar { padding: 0 12px; gap: 8px; height: 52px; }
+    .topbar-sep, .topbar-title { display: none; }
+    .topbar-logo { font-size: 17px; }
+    #apiStatus { display: none; }          /* hide text, keep dot */
+    .topbar-status { gap: 5px; }
+    .user-badge { gap: 4px; }
+    .topbar-user, .role-chip { display: none; }
+    /* Password change hidden on mobile — accessed via settings later */
+    #userBadge .btn:first-of-type { display: none; }
+
+    /* Login */
+    .login-overlay { align-items: flex-start; padding-top: 60px; }
+    .login-card {
+      width: calc(100vw - 32px); max-width: 400px;
+      padding: 24px 18px; border-radius: 12px;
+    }
+    .login-logo { font-size: 22px; }
+    .login-sub { font-size: 12px; }
+
+    /* Cards */
+    .card { padding: 12px; border-radius: 8px; }
+    .card-header { padding-bottom: 10px; margin-bottom: 10px; }
+
+    /* Forms — stack all multi-col grids */
+    .two-col, .input-2col, .input-3col, .input-row {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Buttons — 44px minimum touch target (Apple HIG) */
+    .btn { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+    .btn-lg { min-height: 50px; font-size: 15px; }
+    .btn-sm { min-height: 36px; padding: 6px 12px; font-size: 12px; }
+
+    /* Tab bar — horizontal scroll, no wrap */
+    .tab-bar {
+      overflow-x: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; flex-wrap: nowrap;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab { white-space: nowrap; padding: 10px 14px; font-size: 12px; }
+
+    /* Tech provision — stack OLT picker above provision form */
+    .tech-prov-grid {
+      grid-template-columns: 1fr !important;
+      gap: 12px !important;
+    }
+    #techOnuList { max-height: none !important; }
+
+    /* ONU pick rows — tighter columns */
+    .onu-pick-row {
+      grid-template-columns: 30px 30px 30px 1fr auto !important;
+      gap: 4px; padding: 8px 6px; font-size: 12px;
+    }
+    .onu-pick-row .sn-col { font-size: 12px; }
+
+    /* Steps */
+    .steps { gap: 4px; }
+    .step { padding: 7px 8px; }
+    .step-name { font-size: 11px; }
+    .step-icon { width: 22px; height: 22px; font-size: 11px; flex-shrink: 0; }
+
+    /* Tables — horizontal scroll */
+    .card { overflow-x: auto; }
+    table { font-size: 11px; min-width: 480px; }
+    table td, table th { padding: 6px 8px !important; white-space: nowrap; }
+
+    /* Modal — bottom sheet style */
+    .modal-overlay { align-items: flex-end !important; }
+    .modal {
+      width: 100% !important; max-width: 100% !important;
+      border-radius: 16px 16px 0 0 !important;
+      padding: 20px 16px 32px;
+      max-height: 90vh; overflow-y: auto;
+    }
+
+    /* WiFi popup — full-width, scrollable */
+    .wifi-popup {
+      width: calc(100vw - 16px) !important;
+      border-radius: 16px !important;
+      padding: 18px 14px;
+      max-height: 88vh; overflow-y: auto;
+    }
+    .wifi-popup-title { font-size: 14px; }
+    .wifi-grid { grid-template-columns: 1fr !important; }
+    .wifi-pass-big .wifi-item-val { font-size: 18px !important; letter-spacing: 2px; }
+
+    /* Tech success WiFi cards */
+    #techSuccessPanel > div[style*="grid-template-columns:1fr 1fr"] {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Ticket cards */
+    .ticket-card { padding: 12px; }
+
+    /* Show mobile bottom nav */
+    .mob-nav { display: block; }
+
+    /* Result grid */
+    .result-grid { grid-template-columns: 1fr 1fr; }
+
+    /* Console smaller on mobile */
+    .console { min-height: 100px; max-height: 180px; font-size: 11px; }
+  }
+
+  /* Extra small screens (320px phones) */
+  @media (max-width: 380px) {
+    .topbar-logo { font-size: 15px; }
+    .tab { padding: 10px 10px; font-size: 11px; }
+    .onu-pick-row { gap: 3px; padding: 7px 4px; }
+  }
 </style>
 </head>
 <body>
@@ -868,7 +1027,7 @@
 
     <!-- ===== TAB: TECH PROVISIONING ===== -->
     <div id="tab-techprovision" class="hidden">
-      <div style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;">
+      <div class="tech-prov-grid" style="display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;">
         <!-- LEFT: OLT + ONU selection -->
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div class="card">
@@ -897,7 +1056,9 @@
         <!-- RIGHT: Provision form -->
         <div class="card" id="techProvForm" style="display:none;">
           <div class="card-header"><div class="card-title">Provision ONU</div></div>
-          <div style="display:flex;flex-direction:column;gap:14px;">
+
+          <!-- Form body (hidden after success) -->
+          <div id="techProvFormBody" style="display:flex;flex-direction:column;gap:14px;">
             <div style="background:var(--surface2);border-radius:var(--radius);padding:10px;font-size:12px;">
               <div style="color:var(--text-muted);margin-bottom:4px;">Selected ONU</div>
               <div style="font-family:monospace;color:var(--yellow);font-weight:600;" id="techSelectedSerial">—</div>
@@ -934,6 +1095,47 @@
               </div>
             </div>
           </div>
+
+          <!-- Success panel (shown after successful provisioning) -->
+          <div id="techSuccessPanel" style="display:none;flex-direction:column;gap:14px;">
+            <div style="text-align:center;padding:10px 0 14px;border-bottom:1px solid var(--border);">
+              <div style="font-size:32px;margin-bottom:6px;">✅</div>
+              <div style="font-weight:700;color:var(--accent);font-size:15px;margin-bottom:4px;">ONU Provisioned Successfully</div>
+              <div style="font-size:12px;color:var(--text-muted);font-family:monospace;" id="techSuccessInfo"></div>
+            </div>
+            <!-- WiFi 2.4 GHz -->
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📡 WiFi 2.4 GHz</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Network Name (SSID)</div>
+                  <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--yellow);" id="techWifi2gSsid">—</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Password</div>
+                  <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--accent);" id="techWifi2gPass">—</div>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-full" style="font-size:12px;" onclick="copyWifi('2g')">📋 Copy 2.4GHz Credentials</button>
+            </div>
+            <!-- WiFi 5 GHz -->
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+              <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;">📡 WiFi 5 GHz</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Network Name (SSID)</div>
+                  <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--yellow);" id="techWifi5gSsid">—</div>
+                </div>
+                <div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Password</div>
+                  <div style="font-family:monospace;font-size:14px;font-weight:700;color:var(--accent);" id="techWifi5gPass">—</div>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-full" style="font-size:12px;" onclick="copyWifi('5g')">📋 Copy 5GHz Credentials</button>
+            </div>
+            <div style="font-size:12px;color:var(--accent);text-align:center;">📨 WiFi credentials sent to customer via SMS &amp; email</div>
+            <button class="btn btn-primary btn-full" onclick="techProvisionAnother()">+ Provision Another ONU</button>
+          </div>
         </div>
       </div>
     </div><!-- /tab-techprovision -->
@@ -954,6 +1156,20 @@
 
   </div><!-- /main -->
 </div><!-- /layout -->
+
+<!-- Mobile bottom nav (tech only, shown via JS after login) -->
+<nav class="mob-nav hidden" id="mobileBottomNav" aria-label="Mobile navigation">
+  <div class="mob-nav-inner">
+    <button class="mob-nav-btn active" id="mobNavTickets" onclick="switchMobileTab('mytickets','mobNavTickets')">
+      <span class="mob-nav-icon">🎫</span>
+      <span class="mob-nav-label">Tickets</span>
+    </button>
+    <button class="mob-nav-btn" id="mobNavProvision" onclick="switchMobileTab('techprovision','mobNavProvision')">
+      <span class="mob-nav-icon">📡</span>
+      <span class="mob-nav-label">Provision</span>
+    </button>
+  </div>
+</nav>
 
 <!-- WiFi Credentials Popup -->
 <div class="modal-overlay hidden" id="wifiPopupModal">
@@ -1237,14 +1453,33 @@ function initPortalAfterLogin() {
     connectApi();
     loadAdminUsers();
   } else if (isTech) {
-    // Hide sidebar entirely for technicians — they use the self-contained provisioning tab
+    // Hide sidebar entirely for technicians
     document.getElementById('mainSidebar').style.display = 'none';
     document.getElementById('mainLayout').classList.add('tech-layout');
     const firstTech = document.getElementById('tabMyTickets');
     showTab('mytickets', firstTech);
     loadMyTickets();
     loadTechOlts();
+    // Show mobile bottom nav
+    const nav = document.getElementById('mobileBottomNav');
+    if (nav) nav.classList.remove('hidden');
   }
+}
+
+function switchMobileTab(tabName, btnId) {
+  // Map tab name to the corresponding desktop tab element
+  const tabMap = {
+    'mytickets':     'tabMyTickets',
+    'techprovision': 'tabTechProvision',
+  };
+  const tabEl = document.getElementById(tabMap[tabName]);
+  if (tabEl) showTab(tabName, tabEl);
+  // Update bottom nav active state
+  document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById(btnId);
+  if (activeBtn) activeBtn.classList.add('active');
+  // Scroll to top of main content
+  document.querySelector('.main')?.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Init on page load — if token exists skip login
@@ -2477,27 +2712,54 @@ let _techOltList = [];
 
 async function loadTechOlts() {
   try {
-    _techOltList = await apiFetch('/api/v1/tech/olts');
+    const raw = await apiFetch('/api/v1/tech/olts');
+    // Sort alphabetically by name
+    _techOltList = raw.slice().sort((a, b) => a.name.localeCompare(b.name));
     _renderTechOltSelect(_techOltList);
+    // Auto-select and activate the first OLT
+    if (_techOltList.length > 0) {
+      document.getElementById('techOltSelect').value = _techOltList[0].id;
+      techOltSelected();
+    }
   } catch(e) {}
 }
 
 function _renderTechOltSelect(olts) {
   const sel = document.getElementById('techOltSelect');
+  const prev = sel.value;   // remember what was selected
   sel.innerHTML = '<option value="">— Select OLT —</option>' +
-    olts.map(o=>`<option value="${o.id}">${o.name} — ${o.host} (${o.model})</option>`).join('');
+    olts.map(o => `<option value="${o.id}">${o.name} — ${o.host} (${o.model})</option>`).join('');
+  // Restore the previous selection if it still appears in the filtered list
+  if (prev && olts.some(o => String(o.id) === prev)) {
+    sel.value = prev;
+  }
 }
 
 function filterTechOlts(q) {
+  const sel = document.getElementById('techOltSelect');
+  const prev = sel.value;
   const filtered = q
     ? _techOltList.filter(o =>
         o.name.toLowerCase().includes(q.toLowerCase()) ||
         o.host.toLowerCase().includes(q.toLowerCase()) ||
         o.model.toLowerCase().includes(q.toLowerCase()))
     : _techOltList;
+
+  if (!filtered.length) {
+    sel.innerHTML = '<option value="">No match</option>';
+    document.getElementById('techScanBtn').disabled = true;
+    return;
+  }
+
   _renderTechOltSelect(filtered);
-  document.getElementById('techOltSelect').value = '';
-  document.getElementById('techScanBtn').disabled = true;
+
+  // If previous selection is still in the filtered list, keep it; otherwise pick first match
+  if (prev && filtered.some(o => String(o.id) === prev)) {
+    sel.value = prev;
+  } else {
+    sel.value = filtered[0].id;
+  }
+  techOltSelected();
 }
 
 function techOltSelected() {
@@ -2526,12 +2788,12 @@ function renderTechOnus(onus) {
   if (!onus.length) { el.innerHTML='<div style="color:var(--text-muted);padding:12px;font-size:13px;">No unregistered ONUs found</div>'; return; }
   el.innerHTML = `
     <div class="onu-pick-row" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;cursor:default;">
-      <span>Frame</span><span>Slot</span><span>Port</span><span>Serial</span><span></span>
+      <span>F</span><span>S</span><span>P</span><span>Serial Number</span><span></span>
     </div>` +
     onus.map((o,i)=>`
     <div class="onu-pick-row" id="techOnuRow_${i}" onclick="techSelectOnu(${i})">
       <span>${o.frame}</span><span>${o.slot}</span><span>${o.port}</span>
-      <span style="font-family:monospace;color:var(--yellow);">${o.serial_number}</span>
+      <span class="sn-col" title="${o.serial_number}">${o.serial_number}</span>
       <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation();techSelectOnu(${i})">Select</button>
     </div>`).join('');
 }
@@ -2613,25 +2875,22 @@ async function doTechProvision() {
     // All steps done
     for (let i=1;i<=5;i++) setTimeout(()=>_techSetStep(i,'done'), i*120);
 
-    // Show WiFi popup
-    document.getElementById('wifiPopupCustomer').textContent =
-      `${result.full_name} — ${result.customer_id} — ${result.olt_name} ${result.onu_location}`;
-    document.getElementById('wifiSsid2g').textContent    = result.wifi_ssid_2g;
-    document.getElementById('wifiSsid5g').textContent    = result.wifi_ssid_5g;
-    document.getElementById('wifiPassword').textContent  = result.wifi_password;
-    document.getElementById('wifiPppUser').textContent   = result.pppoe_username;
-    document.getElementById('wifiVlan').textContent      = result.vlan_id;
-    setTimeout(() => openModal('wifiPopupModal'), 700);
+    // Store result for copy helper
+    window._lastTechProvResult = result;
 
-    // Reset form after a short pause
+    // Populate success panel
+    document.getElementById('techSuccessInfo').textContent =
+      `${result.full_name} · ${result.customer_id} · Port ${result.onu_location}`;
+    document.getElementById('techWifi2gSsid').textContent = result.wifi_ssid_2g;
+    document.getElementById('techWifi2gPass').textContent = result.wifi_password;
+    document.getElementById('techWifi5gSsid').textContent = result.wifi_ssid_5g;
+    document.getElementById('techWifi5gPass').textContent = result.wifi_password;
+
+    // Swap form body → success panel (after steps finish animating)
     setTimeout(() => {
-      document.getElementById('techCustomerId').value = '';
-      document.getElementById('techOnuType').value = '';
-      document.getElementById('techProvForm').style.display = 'none';
-      document.getElementById('techOnuListCard').style.display = 'none';
-      _techResetSteps();
-      _techSelectedOnu = null; _techOnus = [];
-    }, 2000);
+      document.getElementById('techProvFormBody').style.display = 'none';
+      document.getElementById('techSuccessPanel').style.display = 'flex';
+    }, 700);
 
   } catch(e) {
     // Mark the first running step as error
@@ -2641,8 +2900,38 @@ async function doTechProvision() {
     }
     errEl.textContent = e.message;
     errEl.classList.remove('hidden');
+    btn.disabled=false; btn.innerHTML='🚀 Provision Customer';
   }
-  finally { btn.disabled=false; btn.innerHTML='🚀 Provision Customer'; }
+}
+
+function techProvisionAnother() {
+  // Reset form for next provisioning
+  document.getElementById('techSuccessPanel').style.display = 'none';
+  document.getElementById('techProvFormBody').style.display = 'flex';
+  document.getElementById('techCustomerId').value = '';
+  document.getElementById('techOnuType').value = '';
+  document.getElementById('techProvErr').classList.add('hidden');
+  document.getElementById('techProvBtn').disabled = false;
+  document.getElementById('techProvBtn').innerHTML = '🚀 Provision Customer';
+  _techResetSteps();
+  // Hide the form card and ONU list so tech scans again
+  document.getElementById('techProvForm').style.display = 'none';
+  document.getElementById('techOnuListCard').style.display = 'none';
+  _techSelectedOnu = null; _techOnus = [];
+  window._lastTechProvResult = null;
+}
+
+function copyWifi(band) {
+  const r = window._lastTechProvResult;
+  if (!r) return;
+  const ssid = band === '2g' ? r.wifi_ssid_2g : r.wifi_ssid_5g;
+  const text = `WiFi Network: ${ssid}\nPassword: ${r.wifi_password}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = orig, 1800);
+  }).catch(() => prompt('Copy WiFi credentials:', text));
 }
 
 // ──── ADMIN USER MANAGEMENT ───────────────────────────────────────────────────
@@ -2722,6 +3011,16 @@ setInterval(async () => {
     else badge.style.display = 'none';
   } catch(e) {}
 }, 60000);
+</script>
+<script>
+// ── PWA Service Worker Registration ──────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(r => console.log('[PWA] SW registered scope:', r.scope))
+      .catch(e => console.warn('[PWA] SW registration failed:', e));
+  });
+}
 </script>
 </body>
 </html>

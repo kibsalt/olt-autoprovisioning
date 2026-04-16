@@ -327,17 +327,65 @@ class OLTSSHClient:
     async def execute_config_mode(
         self, commands: list[str], cmd_timeout: float | None = None
     ) -> list[str]:
-        results = []
-        await self.execute("configure terminal")
-        try:
-            for cmd in commands:
-                result = await self.execute(cmd, timeout=cmd_timeout)
-                results.append(result)
-        finally:
+        """Execute a batch of config-mode commands in a single locked session.
+
+        Holds self._lock for the entire configure-terminal … end block so that
+        the alarm poller (or any other concurrent caller) cannot inject commands
+        in the middle of a multi-step config sequence.  Previously the lock was
+        released between every command, allowing interleaving that would corrupt
+        the CLI context and make each subsequent command unpredictably slow.
+        """
+        if not self._connected or not self._writer:
+            raise OLTConnectionError("Not connected to OLT")
+
+        t_cmd = cmd_timeout or self.command_timeout
+
+        async with self._lock:          # ← hold for entire session
+            results: list[str] = []
+
+            # Enter config mode
+            self._write("configure terminal\r\n")
+            await self._read_until_prompt(timeout=self.command_timeout)
+
             try:
-                await self.execute("end")
-            except Exception:
-                pass
+                for cmd in commands:
+                    t0 = asyncio.get_event_loop().time()
+                    self._write(cmd + "\r\n")
+                    raw = await self._read_until_prompt(timeout=t_cmd)
+                    elapsed = asyncio.get_event_loop().time() - t0
+                    if elapsed > 2.0:
+                        logger.warning(
+                            "slow_config_cmd",
+                            cmd=cmd[:60],
+                            elapsed_s=round(elapsed, 2),
+                            host=self.host,
+                        )
+
+                    raw = _clean_telnet_output(raw)
+                    lines = raw.split("\n")
+                    if lines and cmd.strip() in lines[0]:
+                        lines = lines[1:]
+                    result = "\n".join(lines).strip()
+
+                    # Error check (skip lines that merely echo the command)
+                    clean_for_errors = "\n".join(
+                        l for l in result.split("\n") if cmd[:20] not in l
+                    )
+                    for pattern in ERROR_PATTERNS:
+                        if re.search(pattern, clean_for_errors):
+                            raise OLTCommandError(
+                                f"Config-mode error: {result}",
+                                command=cmd,
+                                raw_output=result,
+                            )
+                    results.append(result)
+            finally:
+                try:
+                    self._write("end\r\n")
+                    await self._read_until_prompt(timeout=self.command_timeout)
+                except Exception:
+                    pass
+
         return results
 
     # ------------------------------------------------------------------

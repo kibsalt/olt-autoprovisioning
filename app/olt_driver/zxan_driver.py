@@ -68,35 +68,28 @@ class ZXANDriver(BaseOLTDriver):
             f"interface {gpon_olt}",
             f"onu {onu.onu_id} type {onu_type} sn {serial_number}",
             "exit",
-            f"interface {gpon_onu}",
         ]
+        # Only enter gpon-onu context if we need to set a description
+        # sn-bind is omitted: it triggers live PLOAM negotiation which blocks
+        # the Telnet session for several seconds while the OLT waits for the ONU
+        # to respond. The ONU is already locked to the serial via the sn field above.
         if description:
-            commands.append(f"description {description.strip().replace(' ', '_')}")
-        commands.append("sn-bind enable sn")
-        commands.append("exit")
+            commands += [
+                f"interface {gpon_onu}",
+                f"description {description.strip().replace(' ', '_')}",
+                "exit",
+            ]
 
         try:
             results = await self.ssh.execute_config_mode(commands)
         except Exception as exc:
-            # sn-bind is rejected by some third-party ONUs — retry without it
             logger.warning(
-                "authorize_onu_retry_without_snbind",
+                "authorize_onu_config_error",
                 platform="ZXAN",
                 serial=serial_number,
                 error=str(exc)[:200],
             )
-            commands_no_snbind = [
-                f"interface {gpon_olt}",
-                f"onu {onu.onu_id} type {onu_type} sn {serial_number}",
-                "exit",
-            ]
-            if description:
-                commands_no_snbind += [
-                    f"interface {gpon_onu}",
-                    f"description {description.strip().replace(' ', '_')}",
-                    "exit",
-                ]
-            results = await self.ssh.execute_config_mode(commands_no_snbind)
+            raise
 
         logger.info(
             "onu_authorized",

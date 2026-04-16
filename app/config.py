@@ -41,8 +41,11 @@ class Settings(BaseSettings):
     acs_url: str = "http://197.232.61.253:7547"
     acs_username: str = "ACS"
     acs_password: str = "jtl@acs"
-    # GenicACS northbound management API (default port 7557)
+    # GenieACS northbound management API (default port 7557)
     acs_management_url: str = "http://197.232.61.253:7557"
+    # JTL ACS SOAP provisioning API (port 5001)
+    acs_soap_url: str = "http://197.232.61.253:5001/soap/customer"
+    acs_soap_api_key: str = "JTL@acs2026"
 
     # SMTP for email notifications
     smtp_host: str = "localhost"

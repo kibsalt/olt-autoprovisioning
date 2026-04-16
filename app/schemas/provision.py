@@ -17,6 +17,12 @@ class ProvisionRequest(BaseModel):
     pppoe_username: str | None = Field(default=None, max_length=64)
     pppoe_password: str | None = Field(default=None, max_length=64)
     description: str | None = Field(default=None, max_length=256)
+    # BSS service identifier — passed to ACS SOAP ProvisionCustomer call
+    service_id: str | None = Field(default=None, max_length=100)
+    # Pre-set WiFi credentials — if provided, used as-is instead of auto-generating
+    wifi_ssid_2g: str | None = Field(default=None, max_length=64)
+    wifi_ssid_5g: str | None = Field(default=None, max_length=64)
+    wifi_password: str | None = Field(default=None, max_length=64)
     # Optional: if the caller already knows the port, skip the discovery scan
     known_frame: int | None = Field(default=None)
     known_slot: int | None = Field(default=None)

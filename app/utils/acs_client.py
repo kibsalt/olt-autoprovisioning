@@ -1,4 +1,9 @@
-"""GenieACS REST client for pushing TR-069 parameters to ONUs."""
+"""ACS clients for pushing configuration to ONUs.
+
+Two implementations:
+  - ACSClient      : GenieACS northbound REST API (port 7557) — legacy
+  - JTLACSClient   : JTL ACS SOAP provisioning API (port 5001) — primary
+"""
 import asyncio
 import json
 from functools import partial
@@ -7,6 +12,84 @@ import requests
 import structlog
 
 logger = structlog.get_logger()
+
+# ── JTL ACS SOAP client ───────────────────────────────────────────────────────
+
+_SOAP_TEMPLATE = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+  <soapenv:Body>
+    <ProvisionCustomer xmlns="http://jtl.portal/types">
+      <accountId>{account_id}</accountId>
+      <serviceId>{service_id}</serviceId>
+      <onuSn>{onu_sn}</onuSn>
+      <ssid>{ssid}</ssid>
+      <password>{password}</password>
+    </ProvisionCustomer>
+  </soapenv:Body>
+</soapenv:Envelope>"""
+
+
+class JTLACSClient:
+    """SOAP client for the JTL ACS provisioning API."""
+
+    def __init__(self, soap_url: str, api_key: str, timeout: float = 20.0):
+        self.soap_url = soap_url
+        self.api_key  = api_key
+        self.timeout  = timeout
+
+    async def provision_wifi(
+        self,
+        account_id: str,
+        service_id: str,
+        onu_sn: str,
+        ssid: str,
+        password: str,
+    ) -> bool:
+        """POST a ProvisionCustomer SOAP message to configure WiFi on the ONU via ACS."""
+        body = _SOAP_TEMPLATE.format(
+            account_id=account_id,
+            service_id=service_id,
+            onu_sn=onu_sn,
+            ssid=ssid,
+            password=password,
+        ).encode("utf-8")
+        headers = {
+            "Content-Type": "text/xml; charset=utf-8",
+            "X-API-Key": self.api_key,
+        }
+        loop = asyncio.get_event_loop()
+        try:
+            resp = await loop.run_in_executor(
+                None,
+                lambda: requests.post(
+                    self.soap_url, data=body, headers=headers, timeout=self.timeout
+                ),
+            )
+            if resp.status_code == 200:
+                logger.info(
+                    "acs_soap_ok",
+                    account_id=account_id,
+                    service_id=service_id,
+                    onu_sn=onu_sn,
+                )
+                return True
+            logger.error(
+                "acs_soap_http_error",
+                account_id=account_id,
+                onu_sn=onu_sn,
+                status=resp.status_code,
+                body=resp.text[:300],
+            )
+            return False
+        except Exception as exc:
+            logger.error(
+                "acs_soap_exception",
+                account_id=account_id,
+                onu_sn=onu_sn,
+                error=str(exc),
+            )
+            return False
 
 # TR-098 PPPoE paths
 _PPPOE_USERNAME = (

@@ -431,27 +431,32 @@ async def tech_provision(
     if not olt:
         raise HTTPException(status_code=404, detail=f"OLT id={body.olt_id} not found")
 
-    # 4. Generate WiFi credentials per spec: ssid_2g = JTL_{customer_id}_2G
+    # 4. Generate WiFi credentials — JTL naming convention: JTL_{customer_id}_2G/5G
     wifi_ssid_2g = f"JTL_{body.customer_id}_2G"
     wifi_ssid_5g = f"JTL_{body.customer_id}_5G"
     wifi_password = _random_password(8)
 
-    # 5. Build ProvisionRequest — use known port from scan to skip 32-port discovery
+    # 5. Build ProvisionRequest — pass WiFi + service_id so bss_provision uses them
+    #    directly and fires the ACS SOAP call with the correct credentials.
     prov_req = ProvisionRequest(
         customer_id=body.customer_id,
         customer_name=customer.full_name,
         onu_serial_number=body.serial_number,
         onu_model=body.onu_type,
         olt_id=olt.name,
-        package_id=customer.package,          # from customer record, not user input
+        package_id=customer.package,
         service_vlan=customer.vlan_id,
         oam_vlan=1450,
         pppoe_username=customer.pppoe_username,
         pppoe_password=customer.pppoe_password,
         description=f"Customer:{body.customer_id}",
-        known_frame=body.frame,               # skip full-port scan
+        known_frame=body.frame,
         known_slot=body.slot,
         known_port=body.port,
+        service_id=customer.service_id,       # → ACS SOAP accountId lookup
+        wifi_ssid_2g=wifi_ssid_2g,            # → stored in DB + sent to ACS
+        wifi_ssid_5g=wifi_ssid_5g,
+        wifi_password=wifi_password,
     )
 
     driver_pool = request.app.state.driver_pool
@@ -465,17 +470,6 @@ async def tech_provision(
             status_code=500,
             detail=f"Provisioning failed: {exc}",
         )
-
-    # Update WiFi in ONU record to match our spec-defined naming
-    onu_result = await db.execute(
-        select(ONU).where(ONU.customer_id == body.customer_id)
-    )
-    onu_record = onu_result.scalar_one_or_none()
-    if onu_record:
-        onu_record.wifi_ssid_2g = wifi_ssid_2g
-        onu_record.wifi_ssid_5g = wifi_ssid_5g
-        onu_record.wifi_password = wifi_password
-        await db.flush()
 
     return ProvisionTechResponse(
         success=True,

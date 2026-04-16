@@ -165,3 +165,18 @@ if _DOCS_DIR.exists():
     @app.get("/portal", include_in_schema=False)
     async def bss_portal():
         return FileResponse(str(_DOCS_DIR / "bss-portal.html"))
+
+    @app.get("/sw.js", include_in_schema=False)
+    async def service_worker():
+        return FileResponse(
+            str(_DOCS_DIR / "sw.js"),
+            media_type="application/javascript",
+            headers={"Service-Worker-Allowed": "/"},
+        )
+
+    @app.get("/manifest.json", include_in_schema=False)
+    async def pwa_manifest():
+        return FileResponse(
+            str(_DOCS_DIR / "manifest.json"),
+            media_type="application/manifest+json",
+        )

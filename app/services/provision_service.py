@@ -172,8 +172,19 @@ async def bss_provision(
             detail="PPPoE passthrough via service-port VLAN still active; ACS will auto-configure",
         )
 
-    # 11. Save ONU to DB
-    wifi = generate_wifi_credentials(data.customer_id)
+    # 11. Resolve final WiFi credentials
+    # Use caller-supplied creds when provided (e.g. tech portal with JTL naming),
+    # otherwise auto-generate from customer_id.
+    if data.wifi_ssid_2g and data.wifi_ssid_5g and data.wifi_password:
+        wifi = {
+            "ssid_2g":  data.wifi_ssid_2g,
+            "ssid_5g":  data.wifi_ssid_5g,
+            "password": data.wifi_password,
+        }
+    else:
+        wifi = generate_wifi_credentials(data.customer_id)
+
+    # 12. Save ONU to DB
     onu = ONU(
         olt_id=olt.id,
         serial_number=data.onu_serial_number,
@@ -201,29 +212,28 @@ async def bss_provision(
     await db.flush()
     await db.refresh(onu)
 
-    # 12. Poll for TR-069 Inform (ONU phones home to ACS)
-    acs = _acs()
-    acs_informed = await acs.wait_for_inform(
-        data.onu_serial_number, timeout=120.0, interval=5.0
-    )
-
-    # 13. Push WiFi credentials via ACS (TR-181)
+    # 13. Push WiFi to ACS via SOAP ProvisionCustomer
+    acs_informed = False
     phase_state_confirmed = False
-    if acs_informed:
-        wifi_ok = await acs.configure_wifi(
-            data.onu_serial_number,
-            wifi["ssid_2g"],
-            wifi["ssid_5g"],
-            wifi["password"],
+    if data.service_id:
+        from app.utils.acs_client import JTLACSClient
+        jtl_acs = JTLACSClient(settings.acs_soap_url, settings.acs_soap_api_key)
+        wifi_ok = await jtl_acs.provision_wifi(
+            account_id=data.customer_id,
+            service_id=data.service_id,
+            onu_sn=data.onu_serial_number,
+            ssid=wifi["ssid_2g"],
+            password=wifi["password"],
         )
+        acs_informed = wifi_ok
         phase_state_confirmed = wifi_ok
         if not wifi_ok:
-            logger.warning("acs_wifi_push_failed", serial=data.onu_serial_number)
+            logger.warning("acs_soap_push_failed", serial=data.onu_serial_number)
     else:
-        logger.warning(
-            "acs_inform_not_received",
+        logger.info(
+            "acs_soap_skipped",
             serial=data.onu_serial_number,
-            detail="WiFi will be configured when ONU contacts ACS",
+            reason="no service_id in request",
         )
 
     # 14. Send notifications
