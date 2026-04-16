@@ -70,7 +70,6 @@ class ProvisionTechRequest(BaseModel):
     serial_number: str
     onu_type: str
     customer_id: str
-    package_name: str   # e.g. "GPON-10M" — must match a valid package
     frame: int
     slot: int
     port: int
@@ -437,19 +436,22 @@ async def tech_provision(
     wifi_ssid_5g = f"JTL_{body.customer_id}_5G"
     wifi_password = _random_password(8)
 
-    # 5. Build ProvisionRequest for the existing provision_service
+    # 5. Build ProvisionRequest — use known port from scan to skip 32-port discovery
     prov_req = ProvisionRequest(
         customer_id=body.customer_id,
         customer_name=customer.full_name,
         onu_serial_number=body.serial_number,
         onu_model=body.onu_type,
         olt_id=olt.name,
-        package_id=body.package_name,
+        package_id=customer.package,          # from customer record, not user input
         service_vlan=customer.vlan_id,
         oam_vlan=1450,
         pppoe_username=customer.pppoe_username,
         pppoe_password=customer.pppoe_password,
         description=f"Customer:{body.customer_id}",
+        known_frame=body.frame,               # skip full-port scan
+        known_slot=body.slot,
+        known_port=body.port,
     )
 
     driver_pool = request.app.state.driver_pool

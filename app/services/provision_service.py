@@ -77,23 +77,31 @@ async def bss_provision(
     kbps, _ = resolve_package(data.package_id)
     profile_name = kbps_to_profile_name(kbps)
 
-    # 5. Scan GPON ports to locate ONU by serial number
-    # Default scan: slots 7 and 9, ports 0-15 (covers C300 8+16 port cards)
-    scan_ports = [
-        (1, slot, port)
-        for slot in [7, 9]
-        for port in range(16)
-    ]
-    location = await _find_onu_port(driver, data.onu_serial_number, scan_ports)
-    if location is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                f"ONU {data.onu_serial_number} not found in unconfigured list on {data.olt_id}. "
-                f"Verify the ONU is powered on and connected to a PON port."
-            ),
+    # 5. Locate ONU port — use caller-supplied location if known, else scan
+    if data.known_frame is not None and data.known_slot is not None and data.known_port is not None:
+        frame, slot, port = data.known_frame, data.known_slot, data.known_port
+        logger.info(
+            "bss_provision_using_known_port",
+            serial=data.onu_serial_number,
+            port=f"{frame}/{slot}/{port}",
         )
-    frame, slot, port = location
+    else:
+        # Default scan: slots 7 and 9, ports 0-15 (covers C300 8+16 port cards)
+        scan_ports = [
+            (1, s, p)
+            for s in [7, 9]
+            for p in range(16)
+        ]
+        location = await _find_onu_port(driver, data.onu_serial_number, scan_ports)
+        if location is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"ONU {data.onu_serial_number} not found in unconfigured list on {data.olt_id}. "
+                    f"Verify the ONU is powered on and connected to a PON port."
+                ),
+            )
+        frame, slot, port = location
 
     # 6. Determine next ONU ID
     try:

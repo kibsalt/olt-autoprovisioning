@@ -43,6 +43,7 @@ customers = [
         "customer_id":    "JTL-00001",
         "full_name":      "John Kamau",
         "service_id":     "100001",
+        "package":        "GPON-10M",
         "pppoe_username": "Engineering_test_2",
         "pppoe_password": "Engineering_test_2",
         "vlan_id":        2918,
@@ -51,6 +52,7 @@ customers = [
         "customer_id":    "JTL-00002",
         "full_name":      "Gilbert Rotich",
         "service_id":     "100002",
+        "package":        "GPON-10M",
         "pppoe_username": "gilbert",
         "pppoe_password": "gilbert123",
         "vlan_id":        2918,
@@ -59,6 +61,7 @@ customers = [
         "customer_id":    "JTL-00003",
         "full_name":      "Mike Kirui",
         "service_id":     "100003",
+        "package":        "GPON-10M",
         "pppoe_username": "kplc",
         "pppoe_password": "kplc123",
         "vlan_id":        2918,
@@ -136,8 +139,8 @@ def insert_customer(session: Session, cust: dict) -> None:
     session.execute(
         text(
             "INSERT INTO fixed_pppoe_cust "
-            "(customer_id, full_name, service_id, pppoe_username, pppoe_password, vlan_id) "
-            "VALUES (:customer_id, :full_name, :service_id, :pppoe_username, :pppoe_password, :vlan_id)"
+            "(customer_id, full_name, service_id, package, pppoe_username, pppoe_password, vlan_id) "
+            "VALUES (:customer_id, :full_name, :service_id, :package, :pppoe_username, :pppoe_password, :vlan_id)"
         ),
         cust,
     )

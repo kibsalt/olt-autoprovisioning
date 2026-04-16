@@ -13,6 +13,7 @@ class FixedPppoeCust(Base, TimestampMixin):
     )
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     service_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    package: Mapped[str] = mapped_column(String(50), nullable=False, server_default="GPON-10M")
     pppoe_username: Mapped[str] = mapped_column(String(255), nullable=False)
     pppoe_password: Mapped[str] = mapped_column(String(255), nullable=False)
     vlan_id: Mapped[int] = mapped_column(Integer, nullable=False)

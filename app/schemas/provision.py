@@ -17,6 +17,10 @@ class ProvisionRequest(BaseModel):
     pppoe_username: str | None = Field(default=None, max_length=64)
     pppoe_password: str | None = Field(default=None, max_length=64)
     description: str | None = Field(default=None, max_length=256)
+    # Optional: if the caller already knows the port, skip the discovery scan
+    known_frame: int | None = Field(default=None)
+    known_slot: int | None = Field(default=None)
+    known_port: int | None = Field(default=None)
 
 
 class ProvisionResponse(BaseModel):

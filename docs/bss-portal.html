@@ -921,22 +921,18 @@
                 <option value="FTTM-F839">FTTM-F839</option>
               </select>
             </div>
-            <div class="form-group">
-              <label>Package <span class="req">*</span></label>
-              <select id="techPackage">
-                <option value="">Select package…</option>
-                <option value="GPON-5M">GPON-5M (5 Mbps)</option>
-                <option value="GPON-10M">GPON-10M (10 Mbps)</option>
-                <option value="GPON-20M">GPON-20M (20 Mbps)</option>
-                <option value="GPON-35M">GPON-35M (35 Mbps)</option>
-                <option value="GPON-50M">GPON-50M (50 Mbps)</option>
-                <option value="GPON-100M">GPON-100M (100 Mbps)</option>
-                <option value="GPON-200M">GPON-200M (200 Mbps)</option>
-                <option value="GPON-1000M">GPON-1000M (1 Gbps)</option>
-              </select>
-            </div>
             <div id="techProvErr" class="alert alert-warn hidden"></div>
-            <button class="btn btn-primary btn-full" id="techProvBtn" onclick="doTechProvision()">Provision Customer</button>
+            <button class="btn btn-primary btn-full" id="techProvBtn" onclick="doTechProvision()">🚀 Provision Customer</button>
+            <!-- Progress steps -->
+            <div id="techStepsWrap" style="display:none;margin-top:4px;">
+              <div class="steps">
+                <div class="step pending" id="ts1"><div class="step-icon">1</div><div class="step-name">Connect to OLT</div></div>
+                <div class="step pending" id="ts2"><div class="step-icon">2</div><div class="step-name">Authorize ONU on port</div></div>
+                <div class="step pending" id="ts3"><div class="step-icon">3</div><div class="step-name">Push PPPoE + ACS + VLAN config</div></div>
+                <div class="step pending" id="ts4"><div class="step-icon">4</div><div class="step-name">Configure WiFi via ACS</div></div>
+                <div class="step pending" id="ts5"><div class="step-icon">5</div><div class="step-name">Save to database</div></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2555,45 +2551,98 @@ function techSelectOnu(i) {
   document.getElementById('techProvErr').classList.add('hidden');
 }
 
+function _techSetStep(n, state) {
+  const el = document.getElementById('ts' + n);
+  if (!el) return;
+  el.className = 'step ' + state;
+  const icons = { running:'⟳', done:'✓', error:'✗', pending: n, skip:'—' };
+  el.querySelector('.step-icon').textContent = icons[state] ?? n;
+}
+function _techResetSteps() {
+  for (let i=1;i<=5;i++) _techSetStep(i,'pending');
+  document.getElementById('techStepsWrap').style.display='none';
+}
+
 async function doTechProvision() {
   if (!_techSelectedOnu) return alert('Select an ONU first');
   const customer_id = document.getElementById('techCustomerId').value.trim().toUpperCase();
-  const onu_type = document.getElementById('techOnuType').value;
+  const onu_type    = document.getElementById('techOnuType').value;
   const errEl = document.getElementById('techProvErr');
-  const btn = document.getElementById('techProvBtn');
-  const package_name = document.getElementById('techPackage').value;
+  const btn   = document.getElementById('techProvBtn');
   if (!customer_id) { errEl.textContent='Customer ID required'; errEl.classList.remove('hidden'); return; }
-  if (!onu_type) { errEl.textContent='ONU type required'; errEl.classList.remove('hidden'); return; }
-  if (!package_name) { errEl.textContent='Package required'; errEl.classList.remove('hidden'); return; }
+  if (!onu_type)    { errEl.textContent='ONU type required';    errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
-  btn.disabled=true; btn.textContent='Provisioning…';
+
+  // Show steps panel
+  _techResetSteps();
+  document.getElementById('techStepsWrap').style.display = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Provisioning…';
+
+  // Step 1: health-check (verify OLT is reachable)
+  _techSetStep(1, 'running');
+  const olt_id = parseInt(document.getElementById('techOltSelect').value);
   try {
-    const olt_id = parseInt(document.getElementById('techOltSelect').value);
+    await apiFetch(`/api/v1/tech/olts`);   // lightweight — just confirms connectivity
+    _techSetStep(1, 'done');
+  } catch(e) {
+    _techSetStep(1, 'error');
+    errEl.textContent = 'Cannot reach OLT list: ' + e.message;
+    errEl.classList.remove('hidden');
+    btn.disabled=false; btn.innerHTML='🚀 Provision Customer';
+    return;
+  }
+
+  // Animate remaining steps while provision request runs
+  const delays = [0, 900, 2800, 4500];
+  delays.forEach((d, i) => setTimeout(() => _techSetStep(i+2, 'running'), d));
+
+  try {
     const result = await apiFetch('/api/v1/tech/provision', {
       method:'POST',
       body: JSON.stringify({
-        olt_id, serial_number: _techSelectedOnu.serial_number,
-        onu_type, customer_id, package_name,
-        frame: _techSelectedOnu.frame, slot: _techSelectedOnu.slot, port: _techSelectedOnu.port,
+        olt_id,
+        serial_number: _techSelectedOnu.serial_number,
+        onu_type, customer_id,
+        frame: _techSelectedOnu.frame,
+        slot:  _techSelectedOnu.slot,
+        port:  _techSelectedOnu.port,
       })
     });
+
+    // All steps done
+    for (let i=1;i<=5;i++) setTimeout(()=>_techSetStep(i,'done'), i*120);
+
     // Show WiFi popup
-    document.getElementById('wifiPopupCustomer').textContent = `${result.full_name} — ${result.customer_id} — ${result.olt_name} ${result.onu_location}`;
-    document.getElementById('wifiSsid2g').textContent = result.wifi_ssid_2g;
-    document.getElementById('wifiSsid5g').textContent = result.wifi_ssid_5g;
-    document.getElementById('wifiPassword').textContent = result.wifi_password;
-    document.getElementById('wifiPppUser').textContent = result.pppoe_username;
-    document.getElementById('wifiVlan').textContent = result.vlan_id;
-    openModal('wifiPopupModal');
-    // Reset form
-    document.getElementById('techCustomerId').value = '';
-    document.getElementById('techOnuType').value = '';
-    document.getElementById('techPackage').value = '';
-    document.getElementById('techProvForm').style.display = 'none';
-    document.getElementById('techOnuListCard').style.display = 'none';
-    _techSelectedOnu = null; _techOnus = [];
-  } catch(e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
-  finally { btn.disabled=false; btn.textContent='Provision Customer'; }
+    document.getElementById('wifiPopupCustomer').textContent =
+      `${result.full_name} — ${result.customer_id} — ${result.olt_name} ${result.onu_location}`;
+    document.getElementById('wifiSsid2g').textContent    = result.wifi_ssid_2g;
+    document.getElementById('wifiSsid5g').textContent    = result.wifi_ssid_5g;
+    document.getElementById('wifiPassword').textContent  = result.wifi_password;
+    document.getElementById('wifiPppUser').textContent   = result.pppoe_username;
+    document.getElementById('wifiVlan').textContent      = result.vlan_id;
+    setTimeout(() => openModal('wifiPopupModal'), 700);
+
+    // Reset form after a short pause
+    setTimeout(() => {
+      document.getElementById('techCustomerId').value = '';
+      document.getElementById('techOnuType').value = '';
+      document.getElementById('techProvForm').style.display = 'none';
+      document.getElementById('techOnuListCard').style.display = 'none';
+      _techResetSteps();
+      _techSelectedOnu = null; _techOnus = [];
+    }, 2000);
+
+  } catch(e) {
+    // Mark the first running step as error
+    for (let i=2;i<=5;i++) {
+      const s = document.getElementById('ts'+i);
+      if (s && s.classList.contains('running')) { _techSetStep(i,'error'); break; }
+    }
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+  finally { btn.disabled=false; btn.innerHTML='🚀 Provision Customer'; }
 }
 
 // ──── ADMIN USER MANAGEMENT ───────────────────────────────────────────────────
