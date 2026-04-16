@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
@@ -45,7 +46,11 @@ class MeResponse(BaseModel):
 @router.post("/login", response_model=LoginResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate with username/password, return JWT."""
-    result = await db.execute(select(User).where(User.username == body.username))
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.technician))
+        .where(User.username == body.username)
+    )
     user: User | None = result.scalar_one_or_none()
 
     if not user or not user.active:

@@ -2,6 +2,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader, OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import Settings, settings
 from app.db.session import get_db_session
@@ -56,7 +57,11 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    result = await db.execute(select(User).where(User.id == int(user_id_str)))
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.technician))
+        .where(User.id == int(user_id_str))
+    )
     user = result.scalar_one_or_none()
 
     if not user or not user.active:
