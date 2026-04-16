@@ -339,6 +339,79 @@ async def update_pppoe(
     }
 
 
+async def reprovision_onu(
+    db: AsyncSession,
+    driver_pool: OLTDriverPool,
+    olt_id: int,
+    onu_db_id: int,
+) -> dict:
+    """Re-push all OLT config for an existing ONU (tcont, gemport, service-port, OMCI).
+
+    Use when an ONU was provisioned while offline and config commands failed,
+    or to restore a full config after an OLT reset.
+    """
+    onu = await get_onu_or_404(db, onu_db_id)
+    if onu.olt_id != olt_id:
+        raise HTTPException(status_code=404, detail="ONU not found on this OLT")
+
+    olt = await get_olt_or_404(db, olt_id)
+    driver = await driver_pool.get_driver(olt)
+
+    onu_ident = ONUIdentifier(
+        frame=onu.frame, slot=onu.slot, port=onu.port, onu_id=onu.onu_id
+    )
+    vlan = onu.service_vlan or 2918
+    results: dict = {"onu_id": onu_db_id, "serial_number": onu.serial_number, "steps": {}}
+
+    # 1. T-CONT
+    try:
+        await driver.configure_tcont(onu_ident, tcont_id=1, dba_profile_id="Fix_10M")
+        results["steps"]["tcont"] = "ok"
+    except Exception as exc:
+        results["steps"]["tcont"] = str(exc)[:120]
+        logger.warning("reprovision_tcont_failed", serial=onu.serial_number, error=str(exc)[:200])
+
+    # 2. GEM port
+    try:
+        await driver.configure_gemport(onu_ident, gem_port=1, tcont_id=1, profile_name="Fix_10M")
+        results["steps"]["gemport"] = "ok"
+    except Exception as exc:
+        results["steps"]["gemport"] = str(exc)[:120]
+        logger.warning("reprovision_gemport_failed", serial=onu.serial_number, error=str(exc)[:200])
+
+    # 3. Service port
+    try:
+        await driver.create_service_port(1, onu_ident, vlan, gem_port=1, service_type="internet")
+        results["steps"]["service_port"] = "ok"
+    except Exception as exc:
+        results["steps"]["service_port"] = str(exc)[:120]
+        logger.warning("reprovision_sp_failed", serial=onu.serial_number, error=str(exc)[:200])
+
+    # 4. Full OMCI profile (flow, PPPoE, ACS, security)
+    try:
+        await driver.configure_omci(
+            onu_ident,
+            vlan_id=vlan,
+            acs_url=settings.acs_url,
+            acs_username=settings.acs_username,
+            acs_password=settings.acs_password,
+            pppoe_username=onu.pppoe_username,
+            pppoe_password=onu.pppoe_password,
+        )
+        results["steps"]["omci"] = "ok"
+    except Exception as exc:
+        results["steps"]["omci"] = str(exc)[:120]
+        logger.warning("reprovision_omci_failed", serial=onu.serial_number, error=str(exc)[:200])
+
+    logger.info(
+        "onu_reprovisioned",
+        onu_id=onu_db_id,
+        serial=onu.serial_number,
+        steps=results["steps"],
+    )
+    return results
+
+
 async def update_wifi(
     db: AsyncSession,
     olt_id: int,
@@ -430,19 +503,36 @@ async def remove_onu(
     if onu.olt_id != olt_id:
         raise HTTPException(status_code=404, detail="ONU not found on this OLT")
 
-    driver = await driver_pool.get_driver(olt)
-    onu_ident = ONUIdentifier(
-        frame=onu.frame, slot=onu.slot, port=onu.port, onu_id=onu.onu_id
-    )
+    try:
+        driver = await driver_pool.get_driver(olt)
+        onu_ident = ONUIdentifier(
+            frame=onu.frame, slot=onu.slot, port=onu.port, onu_id=onu.onu_id
+        )
 
-    for svc in onu.services:
-        if svc.service_port_id:
-            try:
-                await driver.delete_service_port(svc.service_port_id, onu_ident)
-            except Exception:
-                logger.warning("service_port_delete_failed", sp_id=svc.service_port_id)
+        for svc in onu.services:
+            if svc.service_port_id:
+                try:
+                    await driver.delete_service_port(svc.service_port_id, onu_ident)
+                except Exception:
+                    logger.warning("service_port_delete_failed", sp_id=svc.service_port_id)
 
-    await driver.remove_onu(onu_ident)
+        try:
+            await driver.remove_onu(onu_ident)
+        except Exception as exc:
+            logger.warning(
+                "onu_olt_remove_failed",
+                serial=onu.serial_number,
+                error=str(exc)[:200],
+                detail="OLT removal failed — DB record will still be deleted",
+            )
+    except Exception as exc:
+        logger.warning(
+            "onu_driver_unavailable",
+            serial=onu.serial_number,
+            error=str(exc)[:200],
+            detail="Could not reach OLT — DB record will still be deleted",
+        )
+
     await db.delete(onu)
     await db.flush()
 
@@ -616,9 +706,11 @@ async def get_olt_config(
     # Uses 'show running-config interface gpon-onu_F/S/P:ID' — fails silently for offline ONUs
     try:
         raw = await driver.ssh.execute(f"show running-config interface {onu_path}")
+        logger.debug("interface_config_raw", onu=onu_path, raw=raw[:300])
         result["interface_config"] = _clean_config(raw)
         result["interface"] = _parse_interface_fields(raw)
-    except Exception:
+    except Exception as exc:
+        logger.warning("interface_config_error", onu=onu_path, error=str(exc)[:200])
         result["interface_config"] = ""
         result["interface"] = {}
 
@@ -626,9 +718,11 @@ async def get_olt_config(
     # Uses 'show onu running config gpon-onu_F/S/P:ID'
     try:
         raw = await driver.ssh.execute(f"show onu running config {onu_path}")
+        logger.debug("pon_onu_mng_raw", onu=onu_path, raw=raw[:300])
         result["pon_onu_mng_config"] = _clean_config(raw)
         result["pon_onu_mng"] = _parse_pon_onu_mng_fields(raw)
-    except Exception:
+    except Exception as exc:
+        logger.warning("pon_onu_mng_error", onu=onu_path, error=str(exc)[:200])
         result["pon_onu_mng_config"] = ""
         result["pon_onu_mng"] = {}
 
@@ -640,12 +734,15 @@ async def get_olt_config(
     except Exception:
         result["status"] = {}
 
-    # 4. Optical info (Rx/Tx power)
+    # 4. Optical info (Rx power, OLT Rx, attenuation, temperature, voltage)
     try:
-        raw = await driver.ssh.execute(
-            f"show gpon onu optical-info {onu_path}"
-        )
-        result["optical"] = self_parse_optical(raw)
+        if hasattr(driver, "get_onu_optical"):
+            result["optical"] = await driver.get_onu_optical(onu_ident)
+        else:
+            raw = await driver.ssh.execute(
+                f"show gpon onu optical-info {onu_path}"
+            )
+            result["optical"] = self_parse_optical(raw)
     except Exception:
         result["optical"] = {}
 
@@ -665,7 +762,6 @@ def self_parse_optical(raw: str) -> dict:
     d = {}
     patterns = {
         "rx_power": re.compile(r"Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
-        "tx_power": re.compile(r"Tx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
         "olt_rx_power": re.compile(r"OLT\s+Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
         "temperature": re.compile(r"[Tt]emperature\s*[:\(]\s*([-\d.]+)", re.I),
         "voltage": re.compile(r"[Vv]oltage\s*[:\(]\s*([-\d.]+)", re.I),

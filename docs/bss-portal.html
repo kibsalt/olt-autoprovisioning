@@ -574,14 +574,11 @@
             <div class="section-label">Provisioning Steps</div>
             <div class="card">
               <div class="steps" id="stepsContainer">
-                <div class="step pending" id="s1"><div class="step-icon">1</div><div class="step-name">Connect to OLT via SSH</div></div>
+                <div class="step pending" id="s1"><div class="step-icon">1</div><div class="step-name">Connect to OLT via Telnet</div></div>
                 <div class="step pending" id="s2"><div class="step-icon">2</div><div class="step-name">Authorize ONU</div></div>
-                <div class="step pending" id="s3"><div class="step-icon">3</div><div class="step-name">Configure T-CONT &amp; GEM Port</div></div>
-                <div class="step pending" id="s4"><div class="step-icon">4</div><div class="step-name">Create Service Port (VLAN)</div></div>
-                <div class="step pending" id="s5"><div class="step-icon">5</div><div class="step-name">Push PPPoE via OLT</div></div>
-                <div class="step pending" id="s6"><div class="step-icon">6</div><div class="step-name">Push ACS / TR-069 endpoint</div></div>
-                <div class="step pending" id="s7"><div class="step-icon">7</div><div class="step-name">WiFi via ACS</div></div>
-                <div class="step pending" id="s8"><div class="step-icon">8</div><div class="step-name">Save to database</div></div>
+                <div class="step pending" id="s3"><div class="step-icon">3</div><div class="step-name">Push OLT config (PPPoE + ACS + VLAN via pon-onu-mng)</div></div>
+                <div class="step pending" id="s4"><div class="step-icon">4</div><div class="step-name">WiFi via ACS</div></div>
+                <div class="step pending" id="s5"><div class="step-icon">5</div><div class="step-name">Save to database</div></div>
               </div>
             </div>
           </div>
@@ -673,7 +670,12 @@
                 <div style="font-size:13px;"><span style="color:var(--text-muted);">Email:</span> <span id="odCustEmail">—</span></div>
               </div>
             </div>
-            <!-- Row 3: Interface config + pon-onu-mng config -->
+            <!-- Row 3: Actions -->
+            <div style="padding-top:12px;border-top:1px solid var(--border);margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sm btn-ghost" id="odReprovisionBtn" onclick="reprovisionOnu(selectedOlt.id, selectedOnuForDetail.id, selectedOnuForDetail.serial_number, this)">Reprovision</button>
+              <span style="font-size:11px;color:var(--text-dim);align-self:center;">Re-push tcont + gemport + service-port + OMCI to OLT. Use when ONU was offline during provisioning.</span>
+            </div>
+            <!-- Row 4: Interface config + pon-onu-mng config -->
             <div style="padding-top:12px;border-top:1px solid var(--border);">
               <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">OLT Running Config</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -1215,7 +1217,7 @@ async function provision() {
   try {
     await apiFetch(`/api/v1/olts/${selectedOlt.id}/health`);
     setStep(1, 'done');
-    log('ok', `SSH connected to ${selectedOlt.host}`);
+    log('ok', `Telnet connected to ${selectedOlt.host}`);
   } catch (connErr) {
     setStep(1, 'error');
     log('err', 'Connect to OLT failed: ' + connErr.message);
@@ -1225,8 +1227,8 @@ async function provision() {
     return;
   }
 
-  // Animate remaining steps (2-8) while provisioning request runs
-  const stepDelay = [0, 600, 1300, 2100, 2800, 3500, 4200];
+  // Animate remaining steps (2-5) while provisioning request runs
+  const stepDelay = [0, 800, 2500, 4000];
   stepDelay.forEach((d, i) => setTimeout(() => setStep(i + 2, 'running'), d));
 
   try {
@@ -1237,7 +1239,7 @@ async function provision() {
     const onu = data?.data || data;
 
     // All steps done
-    for (let i = 1; i <= 8; i++) setTimeout(() => setStep(i, 'done'), i * 150);
+    for (let i = 1; i <= 5; i++) setTimeout(() => setStep(i, 'done'), i * 150);
 
     lastWifiCreds = { ssid_2g: wifi2g, ssid_5g: wifi5g, password: wifiPw || '(server-generated)' };
     document.getElementById('prev2g').textContent = wifi2g;
@@ -1251,7 +1253,7 @@ async function provision() {
 
     showResult(true, onu, payload);
   } catch (e) {
-    for (let i = 2; i <= 8; i++) {
+    for (let i = 2; i <= 5; i++) {
       const s = document.getElementById('s' + i);
       if (s.classList.contains('running')) { setStep(i, 'error'); break; }
     }
@@ -1348,7 +1350,9 @@ async function loadOnus() {
 }
 
 let selectedOnuRow = null;
+let selectedOnuForDetail = null;
 function showOnuDetail(rowEl, onu) {
+  selectedOnuForDetail = onu;
   // Deselect previous row
   if (selectedOnuRow) { selectedOnuRow.style.background = ''; selectedOnuRow.classList.remove('onu-selected'); }
   // Highlight clicked row
@@ -1405,9 +1409,10 @@ async function fetchOnuOltDetails(onu) {
     // Optical
     const opt = c.optical || {};
     const optHtml = `
-      <div style="font-size:13px;"><span style="color:var(--text-muted);">Rx Power:</span> <span style="font-family:monospace;color:${parseFloat(opt.rx_power||0)<=-25?'var(--red)':'var(--green)'};">${opt.rx_power?opt.rx_power+' dBm':'—'}</span></div>
-      <div style="font-size:13px;"><span style="color:var(--text-muted);">Tx Power:</span> <span style="font-family:monospace;">${opt.tx_power?opt.tx_power+' dBm':'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">ONU Rx:</span> <span style="font-family:monospace;color:${parseFloat(opt.rx_power||0)<=-25?'var(--red)':'var(--green)'};">${opt.rx_power?opt.rx_power+' dBm':'—'}</span></div>
       <div style="font-size:13px;"><span style="color:var(--text-muted);">OLT Rx:</span> <span style="font-family:monospace;">${opt.olt_rx_power?opt.olt_rx_power+' dBm':'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Atten ↑:</span> <span style="font-family:monospace;">${opt.attenuation_up?opt.attenuation_up+' dB':'—'}</span></div>
+      <div style="font-size:13px;"><span style="color:var(--text-muted);">Atten ↓:</span> <span style="font-family:monospace;">${opt.attenuation_down?opt.attenuation_down+' dB':'—'}</span></div>
       <div style="font-size:13px;"><span style="color:var(--text-muted);">Temp:</span> ${opt.temperature?opt.temperature+'C':'—'}</div>
       <div style="font-size:13px;"><span style="color:var(--text-muted);">Voltage:</span> ${opt.voltage?opt.voltage+'V':'—'}</div>
     `;
@@ -1483,6 +1488,27 @@ async function checkWanStatus(oltId, onuId, sn, btnEl) {
   } catch(e) {
     if (wanEl) wanEl.innerHTML = `<div style="color:var(--red);font-size:12px;">Error: ${e.message}</div>`;
     log('err', `WAN check failed for ${sn}: ${e.message}`);
+  } finally {
+    btnEl.disabled = false;
+    btnEl.textContent = origText;
+  }
+}
+
+async function reprovisionOnu(oltId, onuId, sn, btnEl) {
+  if (!confirm(`Re-push full OLT config (tcont, gemport, service-port, OMCI) for ${sn}?\n\nUse this when the ONU was offline during provisioning.`)) return;
+  const origText = btnEl.textContent;
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner"></span> Reprovisioning…';
+  log('cmd', `POST /api/v1/olts/${oltId}/onus/${onuId}/reprovision`);
+  try {
+    const data = await apiFetch(`/api/v1/olts/${oltId}/onus/${onuId}/reprovision`, { method: 'POST' });
+    const steps = data?.data?.steps || {};
+    const ok = Object.values(steps).every(v => v === 'ok');
+    log(ok ? 'ok' : 'warn', `Reprovision ${sn}: tcont=${steps.tcont||'?'} gemport=${steps.gemport||'?'} sp=${steps.service_port||'?'} omci=${steps.omci||'?'}`);
+    // Refresh the OLT config view
+    if (selectedOnuForDetail) fetchOnuOltDetails(selectedOnuForDetail);
+  } catch(e) {
+    log('err', `Reprovision failed for ${sn}: ${e.message}`);
   } finally {
     btnEl.disabled = false;
     btnEl.textContent = origText;
@@ -1701,7 +1727,7 @@ function setStep(n, state) {
   const icon = el.querySelector('.step-icon');
   icon.textContent = state === 'done' ? '✓' : state === 'error' ? '✕' : state === 'running' ? '●' : state === 'skip' ? '—' : String(n);
 }
-function resetSteps() { for (let i = 1; i <= 8; i++) setStep(i, 'pending'); }
+function resetSteps() { for (let i = 1; i <= 5; i++) setStep(i, 'pending'); }
 
 // ──── CONSOLE ────
 function log(type, msg) {

@@ -1,5 +1,7 @@
 """Driver for ZTE ZXAN platform (C300, C320)."""
 
+import re
+
 import structlog
 
 from app.olt_driver.base import BaseOLTDriver, CommandResult, ONUIdentifier
@@ -7,6 +9,22 @@ from app.olt_driver.response_parser import OLTResponseParser
 from app.olt_driver.ssh_client import OLTSSHClient
 
 logger = structlog.get_logger()
+
+
+def _parse_optical_info_detail(raw: str) -> dict:
+    """Parse 'show gpon onu optical-info' for temp/voltage/rx (legacy format)."""
+    d: dict = {}
+    patterns = {
+        "rx_power":     re.compile(r"Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
+        "olt_rx_power": re.compile(r"OLT\s+Rx\s+(?:optical\s+)?power\s*[:\(]\s*([-\d.]+)", re.I),
+        "temperature":  re.compile(r"[Tt]emperature\s*[:\(]\s*([-\d.]+)", re.I),
+        "voltage":      re.compile(r"[Vv]oltage\s*[:\(]\s*([-\d.]+)", re.I),
+    }
+    for key, pattern in patterns.items():
+        m = pattern.search(raw)
+        if m:
+            d[key] = m.group(1)
+    return d
 
 
 class ZXANDriver(BaseOLTDriver):
@@ -128,19 +146,82 @@ class ZXANDriver(BaseOLTDriver):
         return self.parser.parse_port_onu_states(raw)
 
     async def get_port_onu_rx(
-        self, frame: int, slot: int, port: int
+        self, frame: int, slot: int, port: int,
+        onu_ids: list[int] | None = None,
     ) -> dict[int, float]:
-        """One SSH call → {onu_id: rx_power_dBm} for all ONUs on a port.
+        """Return {onu_id: rx_power_dBm} for all ONUs on a port.
 
-        Returns empty dict if the OLT firmware does not support optical-info.
+        Strategy (C300/C320):
+          1. 'show pon power onu-rx gpon-olt_F/S/P'  — bulk ONU Rx (preferred)
+          2. Per-ONU 'show pon power attenuation gpon-onu_F/S/P:ID' — reliable fallback
+             (same command used by portal optical display; ONU Rx from down line)
         """
+        # 1. Bulk attempt — one SSH call covers all ONUs on the port
         try:
             raw = await self.ssh.execute(
-                f"show gpon onu optical-info gpon-olt_{frame}/{slot}/{port}"
+                f"show pon power onu-rx gpon-olt_{frame}/{slot}/{port}"
             )
-            return self.parser.parse_port_onu_rx(raw)
+            result = self.parser.parse_port_onu_rx(raw)
+            if result:
+                logger.debug(
+                    "rx_bulk_ok",
+                    port=f"{frame}/{slot}/{port}",
+                    count=len(result),
+                )
+                return result
         except Exception:
-            return {}
+            pass
+
+        # 2. Per-ONU attenuation — confirmed working on C300
+        result: dict[int, float] = {}
+        if onu_ids:
+            logger.debug(
+                "rx_per_onu_fallback",
+                port=f"{frame}/{slot}/{port}",
+                onu_count=len(onu_ids),
+            )
+            for oid in onu_ids:
+                try:
+                    raw = await self.ssh.execute(
+                        f"show pon power attenuation gpon-onu_{frame}/{slot}/{port}:{oid}"
+                    )
+                    parsed = self.parser.parse_pon_power_attenuation(raw)
+                    rx = parsed.get("rx_power")
+                    if rx is not None:
+                        result[oid] = float(rx)
+                except Exception:
+                    continue
+        return result
+
+    async def get_onu_optical(
+        self, onu: ONUIdentifier
+    ) -> dict:
+        """Fetch rich optical data for one ONU.
+
+        Merges 'show pon power attenuation' (C300 primary source for Rx/OLT Rx
+        + attenuation) with 'show gpon onu optical-info' (temperature/voltage
+        when available).
+        """
+        path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+        merged: dict = {}
+
+        try:
+            raw = await self.ssh.execute(f"show pon power attenuation {path}")
+            merged.update(self.parser.parse_pon_power_attenuation(raw))
+        except Exception:
+            pass
+
+        # Still try older optical-info for temp/voltage (and Rx fallback)
+        try:
+            raw = await self.ssh.execute(f"show gpon onu optical-info {path}")
+            old = _parse_optical_info_detail(raw)
+            # Only fill gaps — attenuation output is authoritative
+            for k, v in old.items():
+                merged.setdefault(k, v)
+        except Exception:
+            pass
+
+        return merged
 
     async def configure_dba_profile(
         self, profile_id: int, assured_kbps: int
@@ -304,7 +385,7 @@ class ZXANDriver(BaseOLTDriver):
                 purge_commands.append(f"no vlan-filter iphost 1 pri 0 vlan {v}")
             purge_commands.append("exit")
             try:
-                await self.ssh.execute_config_mode(purge_commands)
+                await self.ssh.execute_config_mode(purge_commands, cmd_timeout=10.0)
             except Exception as exc:
                 logger.warning("omci_purge_failed", onu=path, error=str(exc)[:200])
 
@@ -348,7 +429,7 @@ class ZXANDriver(BaseOLTDriver):
             "exit",
         ]
 
-        results = await self.ssh.execute_config_mode(commands)
+        results = await self.ssh.execute_config_mode(commands, cmd_timeout=10.0)
         logger.info(
             "omci_configured",
             platform="ZXAN",

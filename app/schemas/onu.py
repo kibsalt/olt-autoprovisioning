@@ -84,6 +84,5 @@ class ONUStatusResponse(BaseModel):
     admin_state: str
     oper_state: str
     rx_power: str | None = None
-    tx_power: str | None = None
     distance: str | None = None
     last_down_cause: str | None = None

@@ -87,7 +87,11 @@ async def _poll_port(db, driver, olt, frame, slot, port, onus, active_alarms) ->
             logger.warning("poller_bulk_state_failed", port=f"{frame}/{slot}/{port}", error=str(e))
 
         try:
-            rx_map = await driver.get_port_onu_rx(frame, slot, port)
+            # Pass onu_ids so the driver can fall back to per-ONU queries
+            # if the OLT doesn't support bulk port-level rx commands.
+            rx_map = await driver.get_port_onu_rx(
+                frame, slot, port, onu_ids=[o.onu_id for o in onus]
+            )
         except Exception as e:
             logger.debug("poller_bulk_rx_failed", port=f"{frame}/{slot}/{port}", error=str(e))
 
