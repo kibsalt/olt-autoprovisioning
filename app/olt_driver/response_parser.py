@@ -15,10 +15,11 @@ class OLTResponseParser:
         """
         results = []
         # Matches frame/slot/port with optional :onu_id suffix (C300 style)
+        # Serial can be upper or lower case — normalise to upper
         pattern = re.compile(
             r"(?:gpon-onu_|gpon-olt_)?(\d+)/(\d+)/(\d+)(?::\d+)?\s+"
             r"(?:(\d+)\s+)?"
-            r"([A-Z0-9]{8,16})"
+            r"([A-Za-z0-9]{8,16})"
         )
         for line in raw.split("\n"):
             m = pattern.search(line.strip())
@@ -27,7 +28,7 @@ class OLTResponseParser:
                     "frame": int(m.group(1)),
                     "slot": int(m.group(2)),
                     "port": int(m.group(3)),
-                    "serial_number": m.group(5),
+                    "serial_number": m.group(5).upper(),
                 })
         return results
 

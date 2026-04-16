@@ -59,6 +59,9 @@
     grid-template-columns: 340px 1fr;
     min-height: calc(100vh - 56px);
   }
+  .layout.tech-layout {
+    grid-template-columns: 1fr;
+  }
   .sidebar {
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -344,10 +347,10 @@
 </div>
 
 <!-- LAYOUT -->
-<div class="layout">
+<div class="layout" id="mainLayout">
 
   <!-- SIDEBAR -->
-  <div class="sidebar">
+  <div class="sidebar" id="mainSidebar">
 
     <!-- API Config -->
     <div>
@@ -870,6 +873,10 @@
         <div style="display:flex;flex-direction:column;gap:14px;">
           <div class="card">
             <div class="card-header"><div class="card-title">📡 Select OLT</div></div>
+            <div class="form-group" style="margin-bottom:6px;">
+              <input type="text" id="techOltSearch" placeholder="Search OLT name or IP…" oninput="filterTechOlts(this.value)"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:var(--radius);font-size:13px;box-sizing:border-box;">
+            </div>
             <div class="form-group">
               <select id="techOltSelect" onchange="techOltSelected()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:var(--radius);font-size:13px;">
                 <option value="">— Select OLT —</option>
@@ -912,6 +919,20 @@
                 <option value="ZTE-F601">ZTE-F601</option>
                 <option value="HWTC-EG8245N">HWTC-EG8245N</option>
                 <option value="FTTM-F839">FTTM-F839</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Package <span class="req">*</span></label>
+              <select id="techPackage">
+                <option value="">Select package…</option>
+                <option value="GPON-5M">GPON-5M (5 Mbps)</option>
+                <option value="GPON-10M">GPON-10M (10 Mbps)</option>
+                <option value="GPON-20M">GPON-20M (20 Mbps)</option>
+                <option value="GPON-35M">GPON-35M (35 Mbps)</option>
+                <option value="GPON-50M">GPON-50M (50 Mbps)</option>
+                <option value="GPON-100M">GPON-100M (100 Mbps)</option>
+                <option value="GPON-200M">GPON-200M (200 Mbps)</option>
+                <option value="GPON-1000M">GPON-1000M (1 Gbps)</option>
               </select>
             </div>
             <div id="techProvErr" class="alert alert-warn hidden"></div>
@@ -1220,6 +1241,9 @@ function initPortalAfterLogin() {
     connectApi();
     loadAdminUsers();
   } else if (isTech) {
+    // Hide sidebar entirely for technicians — they use the self-contained provisioning tab
+    document.getElementById('mainSidebar').style.display = 'none';
+    document.getElementById('mainLayout').classList.add('tech-layout');
     const firstTech = document.getElementById('tabMyTickets');
     showTab('mytickets', firstTech);
     loadMyTickets();
@@ -2453,13 +2477,31 @@ async function submitCloseTicket() {
 // ──── TECH PROVISIONING ───────────────────────────────────────────────────────
 let _techOnus = [];
 let _techSelectedOnu = null;
+let _techOltList = [];
 
 async function loadTechOlts() {
   try {
-    const olts = await apiFetch('/api/v1/tech/olts');
-    const sel = document.getElementById('techOltSelect');
-    sel.innerHTML = '<option value="">— Select OLT —</option>' + olts.map(o=>`<option value="${o.id}">${o.name} (${o.host})</option>`).join('');
+    _techOltList = await apiFetch('/api/v1/tech/olts');
+    _renderTechOltSelect(_techOltList);
   } catch(e) {}
+}
+
+function _renderTechOltSelect(olts) {
+  const sel = document.getElementById('techOltSelect');
+  sel.innerHTML = '<option value="">— Select OLT —</option>' +
+    olts.map(o=>`<option value="${o.id}">${o.name} — ${o.host} (${o.model})</option>`).join('');
+}
+
+function filterTechOlts(q) {
+  const filtered = q
+    ? _techOltList.filter(o =>
+        o.name.toLowerCase().includes(q.toLowerCase()) ||
+        o.host.toLowerCase().includes(q.toLowerCase()) ||
+        o.model.toLowerCase().includes(q.toLowerCase()))
+    : _techOltList;
+  _renderTechOltSelect(filtered);
+  document.getElementById('techOltSelect').value = '';
+  document.getElementById('techScanBtn').disabled = true;
 }
 
 function techOltSelected() {
@@ -2519,8 +2561,10 @@ async function doTechProvision() {
   const onu_type = document.getElementById('techOnuType').value;
   const errEl = document.getElementById('techProvErr');
   const btn = document.getElementById('techProvBtn');
+  const package_name = document.getElementById('techPackage').value;
   if (!customer_id) { errEl.textContent='Customer ID required'; errEl.classList.remove('hidden'); return; }
   if (!onu_type) { errEl.textContent='ONU type required'; errEl.classList.remove('hidden'); return; }
+  if (!package_name) { errEl.textContent='Package required'; errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
   btn.disabled=true; btn.textContent='Provisioning…';
   try {
@@ -2529,7 +2573,7 @@ async function doTechProvision() {
       method:'POST',
       body: JSON.stringify({
         olt_id, serial_number: _techSelectedOnu.serial_number,
-        onu_type, customer_id,
+        onu_type, customer_id, package_name,
         frame: _techSelectedOnu.frame, slot: _techSelectedOnu.slot, port: _techSelectedOnu.port,
       })
     });
@@ -2544,6 +2588,7 @@ async function doTechProvision() {
     // Reset form
     document.getElementById('techCustomerId').value = '';
     document.getElementById('techOnuType').value = '';
+    document.getElementById('techPackage').value = '';
     document.getElementById('techProvForm').style.display = 'none';
     document.getElementById('techOnuListCard').style.display = 'none';
     _techSelectedOnu = null; _techOnus = [];

@@ -70,6 +70,7 @@ class ProvisionTechRequest(BaseModel):
     serial_number: str
     onu_type: str
     customer_id: str
+    package_name: str   # e.g. "GPON-10M" — must match a valid package
     frame: int
     slot: int
     port: int
@@ -443,7 +444,7 @@ async def tech_provision(
         onu_serial_number=body.serial_number,
         onu_model=body.onu_type,
         olt_id=olt.name,
-        package_id=customer.service_id,
+        package_id=body.package_name,
         service_vlan=customer.vlan_id,
         oam_vlan=1450,
         pppoe_username=customer.pppoe_username,
