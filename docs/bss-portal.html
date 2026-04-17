@@ -1082,6 +1082,32 @@
                 <option value="FTTM-F839">FTTM-F839</option>
               </select>
             </div>
+            <!-- Optional custom WiFi -->
+            <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+              <button type="button"
+                style="width:100%;background:var(--surface2);border:none;color:var(--text-muted);padding:8px 12px;font-size:12px;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
+                onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.wifi-chevron').textContent=this.nextElementSibling.classList.contains('hidden')?'▸':'▾'">
+                <span>📶 Custom WiFi Name &amp; Password <span style="font-size:10px;opacity:.6;">(optional — leave blank to auto-generate)</span></span>
+                <span class="wifi-chevron" style="font-size:10px;">▸</span>
+              </button>
+              <div class="hidden" style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--surface);">
+                <div class="field-hint" style="margin:0 0 4px;">
+                  If filled, both bands share the same base name: <strong>Name_2.4G</strong> and <strong>Name_5G</strong>.
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px;">WiFi Base Name (SSID)</label>
+                  <input type="text" id="techCustomSsid" placeholder="e.g. MyHome  →  MyHome_2.4G / MyHome_5G"
+                    oninput="this.value=this.value.replace(/\s+/g,'_')"
+                    style="font-size:13px;">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label style="font-size:12px;">WiFi Password</label>
+                  <input type="text" id="techCustomPass" placeholder="Min 8 characters"
+                    style="font-family:monospace;font-size:13px;">
+                </div>
+              </div>
+            </div>
+
             <div id="techProvErr" class="alert alert-warn hidden"></div>
             <button class="btn btn-primary btn-full" id="techProvBtn" onclick="doTechProvision()">🚀 Provision Customer</button>
             <!-- Progress steps -->
@@ -2243,13 +2269,29 @@ async function suspendOnu(oltId, onuId) {
   } catch(e) { log('err', 'Suspend failed: ' + e.message); }
 }
 
-async function deleteOnu(oltId, onuId, sn) {
-  if (!confirm(`De-provision ONU ${sn}? This will remove it from the OLT.`)) return;
+async function deleteOnu(oltId, onuId, sn, force = false) {
+  if (!force && !confirm(`De-provision ONU ${sn}?\nThis will remove it from the OLT and the database.`)) return;
   try {
-    await apiFetch(`/api/v1/olts/${oltId}/onus/${onuId}`, { method: 'DELETE' });
+    const url = `/api/v1/olts/${oltId}/onus/${onuId}` + (force ? '?force=true' : '');
+    await apiFetch(url, { method: 'DELETE' });
     log('ok', `ONU ${sn} removed`);
     loadOnus();
-  } catch(e) { log('err', 'Remove failed: ' + e.message); }
+  } catch(e) {
+    const msg = e.message || '';
+    // 422 = OLT hardware removal failed; offer force-delete
+    if (msg.includes('422') || msg.toLowerCase().includes('olt hardware')) {
+      const detail = msg.replace(/^.*?422[^:]*:\s*/i, '');
+      if (confirm(
+        `⚠️ OLT hardware removal failed for ${sn}.\n\n${detail}\n\n` +
+        `Force-delete the database record anyway?\n` +
+        `(The ONU may need to be manually removed from the OLT CLI.)`
+      )) {
+        await deleteOnu(oltId, onuId, sn, true);
+      }
+    } else {
+      log('err', 'Remove failed: ' + msg);
+    }
+  }
 }
 
 // ──── PPPOE/WIFI MODALS ────
@@ -2859,6 +2901,18 @@ async function doTechProvision() {
   const delays = [0, 900, 2800, 4500];
   delays.forEach((d, i) => setTimeout(() => _techSetStep(i+2, 'running'), d));
 
+  // Build WiFi overrides (only if technician filled in the custom fields)
+  const customSsidBase = (document.getElementById('techCustomSsid')?.value || '').trim().replace(/\s+/g,'_');
+  const customPass     = (document.getElementById('techCustomPass')?.value  || '').trim();
+  const wifiOverride   = {};
+  if (customSsidBase) {
+    wifiOverride.wifi_ssid_2g = `${customSsidBase}_2.4G`;
+    wifiOverride.wifi_ssid_5g = `${customSsidBase}_5G`;
+  }
+  if (customPass) {
+    wifiOverride.wifi_password = customPass;
+  }
+
   try {
     const result = await apiFetch('/api/v1/tech/provision', {
       method:'POST',
@@ -2869,6 +2923,7 @@ async function doTechProvision() {
         frame: _techSelectedOnu.frame,
         slot:  _techSelectedOnu.slot,
         port:  _techSelectedOnu.port,
+        ...wifiOverride,
       })
     });
 
@@ -2910,6 +2965,11 @@ function techProvisionAnother() {
   document.getElementById('techProvFormBody').style.display = 'flex';
   document.getElementById('techCustomerId').value = '';
   document.getElementById('techOnuType').value = '';
+  // Clear custom WiFi fields and collapse the panel
+  const ssidEl = document.getElementById('techCustomSsid');
+  const passEl = document.getElementById('techCustomPass');
+  if (ssidEl) ssidEl.value = '';
+  if (passEl) passEl.value = '';
   document.getElementById('techProvErr').classList.add('hidden');
   document.getElementById('techProvBtn').disabled = false;
   document.getElementById('techProvBtn').innerHTML = '🚀 Provision Customer';

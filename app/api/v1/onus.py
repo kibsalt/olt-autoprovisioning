@@ -98,10 +98,11 @@ async def update_onu(
 async def remove_onu(
     olt_id: int,
     onu_id: int,
+    force: bool = Query(False, description="Delete DB record even if OLT hardware removal fails"),
     db: AsyncSession = Depends(get_db),
     driver_pool: OLTDriverPool = Depends(_get_driver_pool),
 ):
-    await onu_service.remove_onu(db, driver_pool, olt_id, onu_id)
+    await onu_service.remove_onu(db, driver_pool, olt_id, onu_id, force=force)
 
 
 @router.get("/onus", response_model=APIResponse[list[ONUResponse]])

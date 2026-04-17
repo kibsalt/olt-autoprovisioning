@@ -73,6 +73,11 @@ class ProvisionTechRequest(BaseModel):
     frame: int
     slot: int
     port: int
+    # Optional WiFi overrides — if provided these are used instead of auto-generated values.
+    # Both 2G and 5G will use the same base name with _2.4G / _5G suffixes.
+    wifi_ssid_2g: str | None = None
+    wifi_ssid_5g: str | None = None
+    wifi_password: str | None = None
 
 
 class ProvisionTechResponse(BaseModel):
@@ -431,10 +436,11 @@ async def tech_provision(
     if not olt:
         raise HTTPException(status_code=404, detail=f"OLT id={body.olt_id} not found")
 
-    # 4. Generate WiFi credentials — JTL naming convention: JTL_{customer_id}_2G/5G
-    wifi_ssid_2g = f"JTL_{body.customer_id}_2G"
-    wifi_ssid_5g = f"JTL_{body.customer_id}_5G"
-    wifi_password = _random_password(8)
+    # 4. Build WiFi credentials — use technician-supplied values when present,
+    #    otherwise fall back to the JTL auto-generated naming convention.
+    wifi_ssid_2g = body.wifi_ssid_2g or f"JTL_{body.customer_id}_2G"
+    wifi_ssid_5g = body.wifi_ssid_5g or f"JTL_{body.customer_id}_5G"
+    wifi_password = body.wifi_password or _random_password(8)
 
     # 5. Build ProvisionRequest — pass WiFi + service_id so bss_provision uses them
     #    directly and fires the ACS SOAP call with the correct credentials.

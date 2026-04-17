@@ -497,11 +497,21 @@ async def remove_onu(
     driver_pool: OLTDriverPool,
     olt_id: int,
     onu_db_id: int,
+    force: bool = False,
 ) -> None:
+    """Delete an ONU from both the OLT hardware and the database.
+
+    If the OLT removal fails and ``force`` is False an HTTP 422 is raised so the
+    caller knows the hardware was not cleaned up.  Pass ``force=True`` to delete
+    the DB record regardless (e.g. the OLT is unreachable or the ONU was already
+    manually removed from the hardware).
+    """
     olt = await get_olt_or_404(db, olt_id)
     onu = await get_onu_or_404(db, onu_db_id)
     if onu.olt_id != olt_id:
         raise HTTPException(status_code=404, detail="ONU not found on this OLT")
+
+    olt_error: str | None = None
 
     try:
         driver = await driver_pool.get_driver(olt)
@@ -518,19 +528,35 @@ async def remove_onu(
 
         try:
             await driver.remove_onu(onu_ident)
+            logger.info(
+                "onu_olt_removed",
+                serial=onu.serial_number,
+                location=f"{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
+            )
         except Exception as exc:
+            olt_error = str(exc)[:300]
             logger.warning(
                 "onu_olt_remove_failed",
                 serial=onu.serial_number,
-                error=str(exc)[:200],
-                detail="OLT removal failed — DB record will still be deleted",
+                error=olt_error,
             )
+
     except Exception as exc:
+        olt_error = str(exc)[:300]
         logger.warning(
             "onu_driver_unavailable",
             serial=onu.serial_number,
-            error=str(exc)[:200],
-            detail="Could not reach OLT — DB record will still be deleted",
+            error=olt_error,
+        )
+
+    if olt_error and not force:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"ONU {onu.serial_number} could not be removed from the OLT hardware: "
+                f"{olt_error}. The database record has NOT been deleted. "
+                f"Use ?force=true to delete the database record anyway."
+            ),
         )
 
     await db.delete(onu)
