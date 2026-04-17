@@ -70,12 +70,32 @@ async def bss_provision(
     # 1. Resolve OLT by name
     olt = await get_olt_by_name(db, data.olt_id)
 
-    # 2. Check for duplicate customer
-    existing = await db.execute(select(ONU).where(ONU.customer_id == data.customer_id))
-    if existing.scalar_one_or_none():
+    # 2. Check for duplicates — serial number AND customer both must be unique.
+    #    Do this BEFORE touching the OLT so a partial state (OLT registered but
+    #    DB save failed) cannot happen due to a constraint we already knew about.
+    dup_serial = (await db.execute(
+        select(ONU).where(ONU.serial_number == data.onu_serial_number.upper())
+    )).scalar_one_or_none()
+    if dup_serial:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Customer '{data.customer_id}' is already provisioned.",
+            detail=(
+                f"ONU serial '{data.onu_serial_number}' is already provisioned "
+                f"under customer '{dup_serial.customer_id}'. "
+                f"Delete the existing record first if this is a re-provisioning."
+            ),
+        )
+
+    dup_customer = (await db.execute(
+        select(ONU).where(ONU.customer_id == data.customer_id)
+    )).scalar_one_or_none()
+    if dup_customer:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Customer '{data.customer_id}' already has ONU '{dup_customer.serial_number}' provisioned. "
+                f"Delete the existing ONU record first before re-provisioning."
+            ),
         )
 
     # 3. Get driver

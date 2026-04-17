@@ -420,14 +420,31 @@ async def tech_provision(
             detail=f"Customer '{body.customer_id}' not found in provisioning database",
         )
 
-    # 2. Check if customer_id already bound to an ONU
-    existing_onu = await db.execute(
-        select(ONU).where(ONU.customer_id == body.customer_id)
-    )
-    if existing_onu.scalar_one_or_none():
+    # 2. Early duplicate checks — serial number AND customer must both be unique.
+    #    bss_provision re-checks these too, but catching here gives a cleaner
+    #    error message with full context before any OLT work starts.
+    dup_sn = (await db.execute(
+        select(ONU).where(ONU.serial_number == body.serial_number.upper())
+    )).scalar_one_or_none()
+    if dup_sn:
         raise HTTPException(
             status_code=409,
-            detail=f"Customer '{body.customer_id}' is already provisioned with an ONU",
+            detail=(
+                f"ONU serial '{body.serial_number}' is already provisioned under "
+                f"customer '{dup_sn.customer_id}'. Delete it first to re-provision."
+            ),
+        )
+
+    dup_cust = (await db.execute(
+        select(ONU).where(ONU.customer_id == body.customer_id)
+    )).scalar_one_or_none()
+    if dup_cust:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Customer '{body.customer_id}' already has ONU '{dup_cust.serial_number}' provisioned. "
+                f"Delete the existing ONU first before re-provisioning."
+            ),
         )
 
     # 3. Lookup OLT by id
