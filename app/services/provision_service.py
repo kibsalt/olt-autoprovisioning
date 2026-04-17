@@ -1,4 +1,13 @@
 """BSS-facing flat provisioning service — full 14-step ONU workflow."""
+
+# ONU models known to support WiFi configuration via OLT CLI (pon-onu-mng ssid ctrl/auth).
+# All other models skip the OLT CLI step and rely on ACS/TR-069 for WiFi provisioning.
+_WIFI_OLT_CLI_MODELS: frozenset[str] = frozenset({
+    "ZTEG-F660",
+    "ZTE-F660",
+    "ZTE-F680",
+    "ZTE-F609",
+})
 import time
 
 import structlog
@@ -184,23 +193,36 @@ async def bss_provision(
     else:
         wifi = generate_wifi_credentials(data.customer_id)
 
-    # 11b. Push WiFi credentials to ONU via OLT CLI (pon-onu-mng ssid ctrl/auth)
-    # This is the primary WiFi config path — ACS SOAP (step 13) is a follow-up
-    # cloud push. Non-fatal: log warning and continue if ONU firmware doesn't
-    # support the ssid CLI commands.
-    try:
-        await driver.configure_wifi(
-            onu_ident,
-            ssid_2g=wifi["ssid_2g"],
-            ssid_5g=wifi["ssid_5g"],
-            password=wifi["password"],
-        )
-    except Exception as exc:
-        logger.warning(
-            "wifi_olt_push_failed",
+    # 11b. Push WiFi credentials to ONU via OLT CLI (pon-onu-mng ssid ctrl/auth).
+    # Only attempted for ONU models known to support the ssid CLI commands.
+    # All others (F839, HWTC, F601, etc.) skip directly to ACS SOAP (step 13).
+    onu_model_key = (data.onu_model or "").upper().replace(" ", "-")
+    wifi_via_olt = any(
+        m.upper() in onu_model_key or onu_model_key in m.upper()
+        for m in _WIFI_OLT_CLI_MODELS
+    )
+    if wifi_via_olt:
+        try:
+            await driver.configure_wifi(
+                onu_ident,
+                ssid_2g=wifi["ssid_2g"],
+                ssid_5g=wifi["ssid_5g"],
+                password=wifi["password"],
+            )
+        except Exception as exc:
+            logger.warning(
+                "wifi_olt_push_failed",
+                serial=data.onu_serial_number,
+                model=data.onu_model,
+                error=str(exc)[:300],
+                detail="WiFi OLT CLI push failed — ACS SOAP will still be attempted",
+            )
+    else:
+        logger.info(
+            "wifi_olt_skipped",
             serial=data.onu_serial_number,
-            error=str(exc)[:300],
-            detail="WiFi OLT CLI push failed — ACS SOAP will still be attempted",
+            model=data.onu_model,
+            reason="ONU model does not support WiFi via OLT CLI — using ACS only",
         )
 
     # 12. Save ONU to DB
