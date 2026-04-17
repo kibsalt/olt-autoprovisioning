@@ -184,6 +184,25 @@ async def bss_provision(
     else:
         wifi = generate_wifi_credentials(data.customer_id)
 
+    # 11b. Push WiFi credentials to ONU via OLT CLI (pon-onu-mng ssid ctrl/auth)
+    # This is the primary WiFi config path — ACS SOAP (step 13) is a follow-up
+    # cloud push. Non-fatal: log warning and continue if ONU firmware doesn't
+    # support the ssid CLI commands.
+    try:
+        await driver.configure_wifi(
+            onu_ident,
+            ssid_2g=wifi["ssid_2g"],
+            ssid_5g=wifi["ssid_5g"],
+            password=wifi["password"],
+        )
+    except Exception as exc:
+        logger.warning(
+            "wifi_olt_push_failed",
+            serial=data.onu_serial_number,
+            error=str(exc)[:300],
+            detail="WiFi OLT CLI push failed — ACS SOAP will still be attempted",
+        )
+
     # 12. Save ONU to DB
     onu = ONU(
         olt_id=olt.id,

@@ -496,15 +496,49 @@ class ZXANDriver(BaseOLTDriver):
         ssid_5g: str,
         password: str,
     ) -> CommandResult:
-        # C300/C320 firmware does not support WiFi CLI commands.
-        # WiFi must be configured via ACS/TR-069 after the ONU registers.
+        """Push WiFi SSID and WPA2-PSK credentials to the ONU via pon-onu-mng.
+
+        Uses the OLT CLI WiFi management context:
+            pon-onu-mng gpon-onu_F/S/P:ID
+              ssid ctrl wifi_0/1 name <ssid_2g>          ← 2.4 GHz
+              ssid auth wpa wifi_0/1 wpa2-psk encrypt aes key <password>
+              ssid ctrl wifi_1/1 name <ssid_5g>          ← 5 GHz
+              ssid auth wpa wifi_1/1 wpa2-psk encrypt aes key <password>
+            exit
+
+        After config mode exits (execute_config_mode sends 'end'), a
+        'write' is sent to persist the ONU running config on the OLT.
+
+        Non-fatal — some ONUs / firmware versions may not support the ssid
+        commands over OMCI; errors are logged as warnings.
+        """
+        path = f"gpon-onu_{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}"
+
+        commands = [
+            f"pon-onu-mng {path}",
+            # 2.4 GHz
+            f"ssid ctrl wifi_0/1 name {ssid_2g}",
+            f"ssid auth wpa wifi_0/1 wpa2-psk encrypt aes key {password}",
+            # 5 GHz
+            f"ssid ctrl wifi_1/1 name {ssid_5g}",
+            f"ssid auth wpa wifi_1/1 wpa2-psk encrypt aes key {password}",
+            "exit",   # back to configure terminal context
+        ]
+
+        results = await self.ssh.execute_config_mode(commands, cmd_timeout=10.0)
+
+        # Persist to OLT NVRAM — run outside config mode (execute_config_mode
+        # already sent 'end' to return to enable mode)
+        try:
+            await self.ssh.execute("write", timeout=15.0)
+        except Exception as exc:
+            logger.warning("wifi_olt_write_failed", onu=path, error=str(exc)[:200])
+
         logger.info(
-            "wifi_cli_skipped",
+            "wifi_olt_configured",
             platform="ZXAN",
-            onu=f"{onu.frame}/{onu.slot}/{onu.port}:{onu.onu_id}",
-            reason="C300/C320 firmware does not support wifi CLI — use ACS",
+            onu=path,
+            ssid_2g=ssid_2g,
+            ssid_5g=ssid_5g,
         )
-        return CommandResult(
-            success=True,
-            raw_output="WiFi CLI not supported on ZXAN C300/C320 — configure via ACS",
-        )
+        return CommandResult(success=True, raw_output="\n".join(results))

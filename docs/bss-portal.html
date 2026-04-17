@@ -1115,8 +1115,8 @@
               <div class="steps">
                 <div class="step pending" id="ts1"><div class="step-icon">1</div><div class="step-name">Connect to OLT</div></div>
                 <div class="step pending" id="ts2"><div class="step-icon">2</div><div class="step-name">Authorize ONU on port</div></div>
-                <div class="step pending" id="ts3"><div class="step-icon">3</div><div class="step-name">Push PPPoE + ACS + VLAN config</div></div>
-                <div class="step pending" id="ts4"><div class="step-icon">4</div><div class="step-name">Configure WiFi via ACS</div></div>
+                <div class="step pending" id="ts3"><div class="step-icon">3</div><div class="step-name">Push PPPoE + VLAN + OMCI config</div></div>
+                <div class="step pending" id="ts4"><div class="step-icon">4</div><div class="step-name">Set WiFi via OLT → push to ACS</div></div>
                 <div class="step pending" id="ts5"><div class="step-icon">5</div><div class="step-name">Save to database</div></div>
               </div>
             </div>
@@ -2898,7 +2898,10 @@ async function doTechProvision() {
   }
 
   // Animate remaining steps while provision request runs
-  const delays = [0, 900, 2800, 4500];
+  // Step timing approximations (ms after API call starts):
+  //   step2=ONU authorize ~1s, step3=OMCI config ~3s,
+  //   step4=WiFi OLT+ACS ~6s, step5=DB save ~8s
+  const delays = [0, 900, 3000, 6000];
   delays.forEach((d, i) => setTimeout(() => _techSetStep(i+2, 'running'), d));
 
   // Build WiFi overrides (only if technician filled in the custom fields)
